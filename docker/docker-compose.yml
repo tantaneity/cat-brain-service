@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  cat-brain:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - MODEL_VERSION=latest
+      - MODEL_PATH=/app/models
+      - CACHE_ENABLED=false
+      - LOG_LEVEL=INFO
+      - ENABLE_METRICS=true
+      - BATCH_SIZE=32
+      - BATCH_TIMEOUT=0.1
+    volumes:
+      - ../models:/app/models
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+volumes:
+  redis_data:
