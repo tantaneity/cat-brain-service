@@ -1,3 +1,4 @@
+from enum import Enum
 from typing import List, Optional
 
 from pydantic import BaseModel, Field
@@ -5,10 +6,21 @@ from pydantic import BaseModel, Field
 from src.core.environment import EnvConstants
 
 
+class CatPersonality(str, Enum):
+    BALANCED = "balanced"
+    LAZY = "lazy"
+    FOODIE = "foodie"
+    PLAYFUL = "playful"
+
+
 class CatState(BaseModel):
     cat_id: Optional[str] = Field(
         default=None,
         description="Unique cat identifier (uses default brain if not provided)",
+    )
+    personality: CatPersonality = Field(
+        default=CatPersonality.BALANCED,
+        description="Cat personality type affecting decision making",
     )
     hunger: float = Field(
         ge=0,
@@ -35,6 +47,7 @@ class CatState(BaseModel):
         "json_schema_extra": {
             "example": {
                 "cat_id": "whiskers_123",
+                "personality": "lazy",
                 "hunger": 50.0,
                 "energy": 70.0,
                 "distance_to_food": 3.5,

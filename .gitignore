@@ -38,3 +38,4 @@ htmlcov/
 .pytest_cache/
 
 *.log
+test_*

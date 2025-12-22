@@ -112,15 +112,7 @@ class CatBrainTrainer:
             json.dump(metadata, f, indent=2)
 
         latest_link = self.model_path / "latest"
-        if latest_link.exists() or latest_link.is_symlink():
-            if os.name == "nt":
-                if latest_link.is_dir():
-                    os.rmdir(latest_link)
-                else:
-                    latest_link.unlink()
-            else:
-                latest_link.unlink()
-
+        
         if os.name == "nt":
             import shutil
 
@@ -128,6 +120,8 @@ class CatBrainTrainer:
                 shutil.rmtree(latest_link)
             shutil.copytree(version_path, latest_link)
         else:
+            if latest_link.exists() or latest_link.is_symlink():
+                latest_link.unlink()
             latest_link.symlink_to(version_path.name)
 
         logger.info("model_saved", version=version, path=str(version_path))

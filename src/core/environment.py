@@ -22,16 +22,21 @@ class EnvConstants:
     HUNGER_PER_STEP: float = 1.0
     ENERGY_PER_STEP: float = 0.5
     FOOD_HUNGER_REDUCTION: float = 30.0
-    SLEEP_ENERGY_GAIN: float = 5.0
+    SLEEP_ENERGY_GAIN: float = 10.0
     MOVE_DISTANCE: float = 1.0
 
     HUNGRY_THRESHOLD: float = 70.0
     TIRED_THRESHOLD: float = 30.0
+    CRITICAL_TIRED_THRESHOLD: float = 15.0
 
     REWARD_STEP: float = 0.1
     REWARD_EAT_HUNGRY: float = 10.0
-    REWARD_SLEEP_TIRED: float = 5.0
+    REWARD_SLEEP_TIRED: float = 8.0
+    REWARD_SLEEP_CRITICAL: float = 15.0
+    REWARD_PLAY: float = 2.0
     REWARD_DEATH: float = -100.0
+    PENALTY_LOW_ENERGY: float = -0.5
+    PENALTY_INEFFICIENT_ACTION: float = -1.0
 
     INIT_HUNGER_MIN: float = 20.0
     INIT_HUNGER_MAX: float = 50.0
@@ -123,21 +128,30 @@ class CatEnvironment(gym.Env):
             if self.distance_to_food <= 0:
                 if self.hunger > EnvConstants.HUNGRY_THRESHOLD:
                     reward += EnvConstants.REWARD_EAT_HUNGRY
+                elif self.hunger < 40:
+                    reward += EnvConstants.PENALTY_INEFFICIENT_ACTION
                 self.hunger = max(0.0, self.hunger - EnvConstants.FOOD_HUNGER_REDUCTION)
                 self.distance_to_food = self._respawn_distance()
 
         elif action == CatAction.MOVE_TO_TOY:
             self.distance_to_toy -= EnvConstants.MOVE_DISTANCE
             if self.distance_to_toy <= 0:
+                if self.hunger < 60 and self.energy > 40:
+                    reward += EnvConstants.REWARD_PLAY
                 self.distance_to_toy = self._respawn_distance()
 
         elif action == CatAction.SLEEP:
+            if self.energy < EnvConstants.CRITICAL_TIRED_THRESHOLD:
+                reward += EnvConstants.REWARD_SLEEP_CRITICAL
+            elif self.energy < EnvConstants.TIRED_THRESHOLD:
+                reward += EnvConstants.REWARD_SLEEP_TIRED
             self.energy = min(
                 EnvConstants.MAX_ENERGY,
                 self.energy + EnvConstants.SLEEP_ENERGY_GAIN,
             )
-            if self.energy < EnvConstants.TIRED_THRESHOLD:
-                reward += EnvConstants.REWARD_SLEEP_TIRED
+
+        if self.energy < EnvConstants.TIRED_THRESHOLD:
+            reward += EnvConstants.PENALTY_LOW_ENERGY
 
         self.hunger = np.clip(self.hunger, 0.0, EnvConstants.MAX_HUNGER)
         self.energy = np.clip(self.energy, 0.0, EnvConstants.MAX_ENERGY)
@@ -147,6 +161,10 @@ class CatEnvironment(gym.Env):
 
         if self.hunger >= EnvConstants.MAX_HUNGER:
             reward += EnvConstants.REWARD_DEATH
+            terminated = True
+
+        if self.energy <= 0:
+            reward += EnvConstants.REWARD_DEATH / 2
             terminated = True
 
         if self.steps >= self.max_steps:

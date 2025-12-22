@@ -100,7 +100,11 @@ async def predict(
             [state.hunger, state.energy, state.distance_to_food, state.distance_to_toy],
             dtype=np.float32,
         )
-        action = await predictor.predict_single(obs, cat_id=state.cat_id)
+        action = await predictor.predict_single(
+            obs,
+            cat_id=state.cat_id,
+            personality=state.personality.value,
+        )
         return CatAction(action=action, action_name=ACTION_NAMES.get(action))
     except FileNotFoundError as e:
         detail = f"Model not found for cat '{state.cat_id}'" if state.cat_id else "Default model not loaded"
