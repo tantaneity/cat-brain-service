@@ -47,6 +47,7 @@ class BatchPredictor:
     async def predict_single(
         self,
         observation: np.ndarray,
+        cat_id: Optional[str] = None,
         use_cache: bool = True,
     ) -> int:
         if use_cache:
@@ -54,18 +55,17 @@ class BatchPredictor:
             if cached is not None:
                 return cached
 
-        loop = asyncio.get_event_loop()
-        future = loop.create_future()
+        model = self.model_loader.get_model(self.config.MODEL_VERSION, cat_id)
+        if model is None:
+            model = self.model_loader.load_model(self.config.MODEL_VERSION, cat_id)
 
-        request = PredictionRequest(observation=observation, future=future)
-        await self.batch_queue.put(request)
-
-        action = await future
+        action, _ = model.predict(observation, deterministic=True)
+        action_int = int(action)
 
         if use_cache:
-            await self.cache.set(observation, action)
+            await self.cache.set(observation, action_int)
 
-        return action
+        return action_int
 
     async def predict_batch(self, observations: list[np.ndarray]) -> list[int]:
         tasks = [self.predict_single(obs) for obs in observations]

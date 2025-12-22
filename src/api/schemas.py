@@ -6,6 +6,10 @@ from src.core.environment import EnvConstants
 
 
 class CatState(BaseModel):
+    cat_id: Optional[str] = Field(
+        default=None,
+        description="Unique cat identifier (uses default brain if not provided)",
+    )
     hunger: float = Field(
         ge=0,
         le=EnvConstants.MAX_HUNGER,
@@ -30,6 +34,7 @@ class CatState(BaseModel):
     model_config = {
         "json_schema_extra": {
             "example": {
+                "cat_id": "whiskers_123",
                 "hunger": 50.0,
                 "energy": 70.0,
                 "distance_to_food": 3.5,

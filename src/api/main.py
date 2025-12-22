@@ -100,12 +100,13 @@ async def predict(
             [state.hunger, state.energy, state.distance_to_food, state.distance_to_toy],
             dtype=np.float32,
         )
-        action = await predictor.predict_single(obs)
+        action = await predictor.predict_single(obs, cat_id=state.cat_id)
         return CatAction(action=action, action_name=ACTION_NAMES.get(action))
-    except FileNotFoundError:
-        raise HTTPException(status_code=503, detail="Model not loaded")
+    except FileNotFoundError as e:
+        detail = f"Model not found for cat '{state.cat_id}'" if state.cat_id else "Default model not loaded"
+        raise HTTPException(status_code=503, detail=detail)
     except Exception as e:
-        logger.error("prediction_error", error=str(e))
+        logger.error("prediction_error", error=str(e), cat_id=state.cat_id)
         raise HTTPException(status_code=500, detail=str(e))
 
 

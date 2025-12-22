@@ -10,6 +10,7 @@ from src.utils.logger import get_logger
 logger = get_logger(__name__)
 
 EXCLUDED_DIRS: set[str] = {"checkpoints", "tensorboard"}
+DEFAULT_BRAIN_KEY: str = "__default__"
 
 
 class ModelLoader:
@@ -18,27 +19,53 @@ class ModelLoader:
         self.model_path = Path(config.MODEL_PATH)
         self.models: dict[str, PPO] = {}
         self.metadata_cache: dict[str, dict] = {}
+        self.default_version = config.MODEL_VERSION
 
-    def load_model(self, version: str = "latest") -> PPO:
-        if version in self.models:
-            return self.models[version]
+    def load_model(self, version: str = "latest", cat_id: Optional[str] = None) -> PPO:
+        model_key = self._get_model_key(version, cat_id)
+        
+        if model_key in self.models:
+            return self.models[model_key]
 
-        version_path = self.model_path / version
-        model_file = version_path / "cat_brain.zip"
+        cat_model_path = self._get_cat_model_path(version, cat_id)
+        
+        if cat_model_path and cat_model_path.exists():
+            model_file = cat_model_path
+        else:
+            version_path = self.model_path / version
+            model_file = version_path / "cat_brain.zip"
 
         if not model_file.exists():
             raise FileNotFoundError(f"Model not found: {model_file}")
 
         model = PPO.load(str(model_file))
-        self.models[version] = model
+        self.models[model_key] = model
 
-        logger.info("model_loaded", version=version, path=str(model_file))
+        logger.info(
+            "model_loaded",
+            version=version,
+            cat_id=cat_id,
+            path=str(model_file),
+        )
 
         return model
 
-    def get_model(self, version: str = "latest") -> Optional[PPO]:
-        if version in self.models:
-            return self.models[version]
+    def _get_model_key(self, version: str, cat_id: Optional[str]) -> str:
+        if cat_id:
+            return f"{cat_id}:{version}"
+        return f"{DEFAULT_BRAIN_KEY}:{version}"
+
+    def _get_cat_model_path(self, version: str, cat_id: Optional[str]) -> Optional[Path]:
+        if not cat_id:
+            return None
+        cat_dir = self.model_path / "cats" / cat_id / version
+        model_file = cat_dir / "cat_brain.zip"
+        return model_file if model_file.exists() else None
+
+    def get_model(self, version: str = "latest", cat_id: Optional[str] = None) -> Optional[PPO]:
+        model_key = self._get_model_key(version, cat_id)
+        if model_key in self.models:
+            return self.models[model_key]
         return None
 
     def get_model_info(self, version: str = "latest") -> dict:
