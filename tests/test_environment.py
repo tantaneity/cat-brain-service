@@ -1,5 +1,4 @@
-import numpy as np
-import pytest
+from gymnasium.spaces import Box, Discrete
 
 from src.core.environment import CatEnvironment
 
@@ -8,11 +7,13 @@ class TestCatEnvironment:
     def test_observation_space(self):
         env = CatEnvironment()
         assert env.observation_space.shape == (4,)
+        assert isinstance(env.observation_space, Box)
         assert env.observation_space.low.tolist() == [0.0, 0.0, 0.0, 0.0]
         assert env.observation_space.high.tolist() == [100.0, 100.0, 10.0, 10.0]
 
     def test_action_space(self):
         env = CatEnvironment()
+        assert isinstance(env.action_space, Discrete)
         assert env.action_space.n == 4
 
     def test_reset(self):
@@ -79,7 +80,7 @@ class TestCatEnvironment:
 
         _, reward, _, _, _ = env.step(1)  # move_to_food
 
-        assert reward >= 10.0
+        assert float(reward) >= 10.0
 
     def test_death_on_max_hunger(self):
         env = CatEnvironment()
@@ -89,7 +90,7 @@ class TestCatEnvironment:
         _, reward, terminated, _, _ = env.step(0)
 
         assert terminated is True
-        assert reward < 0
+        assert float(reward) < 0
 
     def test_truncation_on_max_steps(self):
         env = CatEnvironment()
