@@ -1,82 +1,152 @@
+from enum import IntEnum
+from typing import Any, Optional, SupportsFloat
+
 import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
 
 
+class CatAction(IntEnum):
+    IDLE = 0
+    MOVE_TO_FOOD = 1
+    MOVE_TO_TOY = 2
+    SLEEP = 3
+
+
+class EnvConstants:
+    MAX_HUNGER: float = 100.0
+    MAX_ENERGY: float = 100.0
+    MAX_DISTANCE: float = 10.0
+    MIN_DISTANCE: float = 5.0
+
+    HUNGER_PER_STEP: float = 1.0
+    ENERGY_PER_STEP: float = 0.5
+    FOOD_HUNGER_REDUCTION: float = 30.0
+    SLEEP_ENERGY_GAIN: float = 5.0
+    MOVE_DISTANCE: float = 1.0
+
+    HUNGRY_THRESHOLD: float = 70.0
+    TIRED_THRESHOLD: float = 30.0
+
+    REWARD_STEP: float = 0.1
+    REWARD_EAT_HUNGRY: float = 10.0
+    REWARD_SLEEP_TIRED: float = 5.0
+    REWARD_DEATH: float = -100.0
+
+    INIT_HUNGER_MIN: float = 20.0
+    INIT_HUNGER_MAX: float = 50.0
+    INIT_ENERGY_MIN: float = 40.0
+    INIT_ENERGY_MAX: float = 70.0
+
+    MAX_STEPS: int = 1000
+    NUM_ACTIONS: int = 4
+
+
 class CatEnvironment(gym.Env):
     metadata = {"render_modes": ["human"]}
 
-    def __init__(self, render_mode=None):
+    def __init__(self, render_mode: Optional[str] = None):
         super().__init__()
         self.render_mode = render_mode
 
         self.observation_space = spaces.Box(
             low=np.array([0.0, 0.0, 0.0, 0.0]),
-            high=np.array([100.0, 100.0, 10.0, 10.0]),
+            high=np.array([
+                EnvConstants.MAX_HUNGER,
+                EnvConstants.MAX_ENERGY,
+                EnvConstants.MAX_DISTANCE,
+                EnvConstants.MAX_DISTANCE,
+            ]),
             dtype=np.float32,
         )
 
-        self.action_space = spaces.Discrete(4)
+        self.action_space = spaces.Discrete(EnvConstants.NUM_ACTIONS)
 
-        self.action_names = {0: "idle", 1: "move_to_food", 2: "move_to_toy", 3: "sleep"}
+        self.hunger: float = 50.0
+        self.energy: float = 50.0
+        self.distance_to_food: float = 5.0
+        self.distance_to_toy: float = 5.0
+        self.steps: int = 0
+        self.max_steps: int = EnvConstants.MAX_STEPS
 
-        self.hunger = 50.0
-        self.energy = 50.0
-        self.distance_to_food = 5.0
-        self.distance_to_toy = 5.0
-        self.steps = 0
-        self.max_steps = 1000
-
-    def reset(self, seed=None, options=None):
+    def reset(
+        self,
+        seed: Optional[int] = None,
+        options: Optional[dict[str, Any]] = None,
+    ) -> tuple[np.ndarray, dict[str, Any]]:
         super().reset(seed=seed)
 
-        self.hunger = self.np_random.uniform(20.0, 50.0)
-        self.energy = self.np_random.uniform(40.0, 70.0)
-        self.distance_to_food = self.np_random.uniform(5.0, 10.0)
-        self.distance_to_toy = self.np_random.uniform(5.0, 10.0)
+        self.hunger = self.np_random.uniform(
+            EnvConstants.INIT_HUNGER_MIN,
+            EnvConstants.INIT_HUNGER_MAX,
+        )
+        self.energy = self.np_random.uniform(
+            EnvConstants.INIT_ENERGY_MIN,
+            EnvConstants.INIT_ENERGY_MAX,
+        )
+        self.distance_to_food = self.np_random.uniform(
+            EnvConstants.MIN_DISTANCE,
+            EnvConstants.MAX_DISTANCE,
+        )
+        self.distance_to_toy = self.np_random.uniform(
+            EnvConstants.MIN_DISTANCE,
+            EnvConstants.MAX_DISTANCE,
+        )
         self.steps = 0
 
         return self._get_observation(), {}
 
-    def _get_observation(self):
+    def _get_observation(self) -> np.ndarray:
         return np.array(
             [self.hunger, self.energy, self.distance_to_food, self.distance_to_toy],
             dtype=np.float32,
         )
 
-    def step(self, action):
+    def _respawn_distance(self) -> float:
+        return self.np_random.uniform(
+            EnvConstants.MIN_DISTANCE,
+            EnvConstants.MAX_DISTANCE,
+        )
+
+    def step(
+        self,
+        action: int,
+    ) -> tuple[np.ndarray, SupportsFloat, bool, bool, dict[str, Any]]:
         self.steps += 1
-        reward = 0.1
+        reward = EnvConstants.REWARD_STEP
 
-        self.hunger += 1.0
-        self.energy -= 0.5
+        self.hunger += EnvConstants.HUNGER_PER_STEP
+        self.energy -= EnvConstants.ENERGY_PER_STEP
 
-        if action == 1:  # move_to_food
-            self.distance_to_food -= 1.0
+        if action == CatAction.MOVE_TO_FOOD:
+            self.distance_to_food -= EnvConstants.MOVE_DISTANCE
             if self.distance_to_food <= 0:
-                if self.hunger > 70:
-                    reward += 10.0
-                self.hunger = max(0.0, self.hunger - 30.0)
-                self.distance_to_food = self.np_random.uniform(5.0, 10.0)
+                if self.hunger > EnvConstants.HUNGRY_THRESHOLD:
+                    reward += EnvConstants.REWARD_EAT_HUNGRY
+                self.hunger = max(0.0, self.hunger - EnvConstants.FOOD_HUNGER_REDUCTION)
+                self.distance_to_food = self._respawn_distance()
 
-        elif action == 2:  # move_to_toy
-            self.distance_to_toy -= 1.0
+        elif action == CatAction.MOVE_TO_TOY:
+            self.distance_to_toy -= EnvConstants.MOVE_DISTANCE
             if self.distance_to_toy <= 0:
-                self.distance_to_toy = self.np_random.uniform(5.0, 10.0)
+                self.distance_to_toy = self._respawn_distance()
 
-        elif action == 3:  # sleep
-            self.energy = min(100.0, self.energy + 5.0)
-            if self.energy < 30:
-                reward += 5.0
+        elif action == CatAction.SLEEP:
+            self.energy = min(
+                EnvConstants.MAX_ENERGY,
+                self.energy + EnvConstants.SLEEP_ENERGY_GAIN,
+            )
+            if self.energy < EnvConstants.TIRED_THRESHOLD:
+                reward += EnvConstants.REWARD_SLEEP_TIRED
 
-        self.hunger = np.clip(self.hunger, 0.0, 100.0)
-        self.energy = np.clip(self.energy, 0.0, 100.0)
+        self.hunger = np.clip(self.hunger, 0.0, EnvConstants.MAX_HUNGER)
+        self.energy = np.clip(self.energy, 0.0, EnvConstants.MAX_ENERGY)
 
         terminated = False
         truncated = False
 
-        if self.hunger >= 100:
-            reward -= 100.0
+        if self.hunger >= EnvConstants.MAX_HUNGER:
+            reward += EnvConstants.REWARD_DEATH
             terminated = True
 
         if self.steps >= self.max_steps:
@@ -84,9 +154,15 @@ class CatEnvironment(gym.Env):
 
         return self._get_observation(), reward, terminated, truncated, {}
 
-    def render(self):
+    def render(self) -> None:
         if self.render_mode == "human":
-            print(
-                f"Step: {self.steps}, Hunger: {self.hunger:.1f}, Energy: {self.energy:.1f}, "
-                f"Food dist: {self.distance_to_food:.1f}, Toy dist: {self.distance_to_toy:.1f}"
+            from src.utils.logger import get_logger
+            logger = get_logger(__name__)
+            logger.info(
+                "env_state",
+                step=self.steps,
+                hunger=round(self.hunger, 1),
+                energy=round(self.energy, 1),
+                food_dist=round(self.distance_to_food, 1),
+                toy_dist=round(self.distance_to_toy, 1),
             )

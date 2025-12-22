@@ -6,6 +6,12 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
+
+class Endpoints:
+    PREDICT: str = "/predict"
+    PREDICT_BATCH: str = "/predict_batch"
+
+
 PREDICTIONS_TOTAL = Counter(
     "predictions_total", "Total number of predictions", ["endpoint"]
 )
@@ -52,12 +58,16 @@ class MetricsMiddleware(BaseHTTPMiddleware):
         REQUEST_LATENCY.labels(method=method, endpoint=endpoint, status=status).observe(
             latency
         )
-        REQUESTS_TOTAL.labels(method=method, endpoint=endpoint, status=status).inc()
+        REQUESTS_TOTAL.labels(
+            method=method,
+            endpoint=endpoint,
+            status=status,
+        ).inc()
 
-        if endpoint == "/predict":
+        if endpoint == Endpoints.PREDICT:
             PREDICTIONS_TOTAL.labels(endpoint="single").inc()
             PREDICTION_LATENCY.labels(endpoint="single").observe(latency)
-        elif endpoint == "/predict_batch":
+        elif endpoint == Endpoints.PREDICT_BATCH:
             PREDICTIONS_TOTAL.labels(endpoint="batch").inc()
             PREDICTION_LATENCY.labels(endpoint="batch").observe(latency)
 

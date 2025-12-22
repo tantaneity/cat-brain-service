@@ -1,12 +1,16 @@
 import time
 from contextlib import asynccontextmanager
-from typing import List
+from typing import AsyncGenerator, List
 
 import numpy as np
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import PlainTextResponse
 
-from src.api.health import get_health_status, get_liveness_status, get_readiness_status
+from src.api.health import (
+    get_health_status,
+    get_liveness_status,
+    get_readiness_status,
+)
 from src.api.middleware import LoggingMiddleware, RequestIdMiddleware
 from src.api.schemas import (
     BatchCatActions,
@@ -18,6 +22,7 @@ from src.api.schemas import (
     ModelInfo,
 )
 from src.core.config import Settings, settings
+from src.core.environment import CatAction as CatActionEnum
 from src.inference.model_loader import ModelLoader
 from src.inference.predictor import BatchPredictor
 from src.utils.logger import get_logger, setup_logger
@@ -25,11 +30,16 @@ from src.utils.metrics import MetricsMiddleware, get_metrics
 
 logger = get_logger(__name__)
 
-ACTION_NAMES = {0: "idle", 1: "move_to_food", 2: "move_to_toy", 3: "sleep"}
+ACTION_NAMES: dict[int, str] = {
+    CatActionEnum.IDLE: "idle",
+    CatActionEnum.MOVE_TO_FOOD: "move_to_food",
+    CatActionEnum.MOVE_TO_TOY: "move_to_toy",
+    CatActionEnum.SLEEP: "sleep",
+}
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     setup_logger(settings.LOG_LEVEL)
     logger.info("starting_service", version="1.0.0")
 

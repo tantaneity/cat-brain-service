@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Optional
 
 from stable_baselines3 import PPO
 
@@ -9,13 +9,15 @@ from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
+EXCLUDED_DIRS: set[str] = {"checkpoints", "tensorboard"}
+
 
 class ModelLoader:
     def __init__(self, config: Settings):
         self.config = config
         self.model_path = Path(config.MODEL_PATH)
-        self.models: Dict[str, PPO] = {}
-        self.metadata_cache: Dict[str, dict] = {}
+        self.models: dict[str, PPO] = {}
+        self.metadata_cache: dict[str, dict] = {}
 
     def load_model(self, version: str = "latest") -> PPO:
         if version in self.models:
@@ -60,20 +62,20 @@ class ModelLoader:
         self.metadata_cache[version] = metadata
         return metadata
 
-    def list_versions(self) -> List[str]:
-        versions = []
+    def list_versions(self) -> list[str]:
+        versions: list[str] = []
 
         if not self.model_path.exists():
             return versions
 
         for item in self.model_path.iterdir():
             if item.is_dir() and (item / "cat_brain.zip").exists():
-                if item.name != "checkpoints" and item.name != "tensorboard":
+                if item.name not in EXCLUDED_DIRS:
                     versions.append(item.name)
 
         return sorted(versions, reverse=True)
 
-    def unload_model(self, version: str):
+    def unload_model(self, version: str) -> None:
         if version in self.models:
             del self.models[version]
             logger.info("model_unloaded", version=version)

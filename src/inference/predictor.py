@@ -1,6 +1,6 @@
 import asyncio
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Optional
 
 import numpy as np
 
@@ -11,11 +11,13 @@ from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
+QUEUE_TIMEOUT: float = 1.0
+
 
 @dataclass
 class PredictionRequest:
     observation: np.ndarray
-    future: asyncio.Future
+    future: asyncio.Future[int]
 
 
 class BatchPredictor:
@@ -25,24 +27,28 @@ class BatchPredictor:
         self.batch_size = config.BATCH_SIZE
         self.batch_timeout = config.BATCH_TIMEOUT
 
-        self.batch_queue: asyncio.Queue = asyncio.Queue()
+        self.batch_queue: asyncio.Queue[PredictionRequest] = asyncio.Queue()
         self.cache = PredictionCache(config)
-        self._processor_task: Optional[asyncio.Task] = None
+        self._processor_task: Optional[asyncio.Task[None]] = None
         self._running = False
 
-    def start(self):
+    def start(self) -> None:
         if self._processor_task is None or self._processor_task.done():
             self._running = True
             self._processor_task = asyncio.create_task(self._batch_processor())
             logger.info("batch_processor_started")
 
-    def stop(self):
+    def stop(self) -> None:
         self._running = False
         if self._processor_task:
             self._processor_task.cancel()
             logger.info("batch_processor_stopped")
 
-    async def predict_single(self, observation: np.ndarray, use_cache: bool = True) -> int:
+    async def predict_single(
+        self,
+        observation: np.ndarray,
+        use_cache: bool = True,
+    ) -> int:
         if use_cache:
             cached = await self.cache.get(observation)
             if cached is not None:
@@ -61,18 +67,19 @@ class BatchPredictor:
 
         return action
 
-    async def predict_batch(self, observations: List[np.ndarray]) -> List[int]:
+    async def predict_batch(self, observations: list[np.ndarray]) -> list[int]:
         tasks = [self.predict_single(obs) for obs in observations]
         return await asyncio.gather(*tasks)
 
-    async def _batch_processor(self):
+    async def _batch_processor(self) -> None:
         while self._running:
             try:
-                requests: List[PredictionRequest] = []
+                requests: list[PredictionRequest] = []
 
                 try:
                     first_request = await asyncio.wait_for(
-                        self.batch_queue.get(), timeout=1.0
+                        self.batch_queue.get(),
+                        timeout=QUEUE_TIMEOUT,
                     )
                     requests.append(first_request)
                 except asyncio.TimeoutError:
@@ -101,7 +108,7 @@ class BatchPredictor:
             except Exception as e:
                 logger.error("batch_processor_error", error=str(e))
 
-    async def _process_batch(self, requests: List[PredictionRequest]):
+    async def _process_batch(self, requests: list[PredictionRequest]) -> None:
         try:
             observations = np.array([r.observation for r in requests])
 
