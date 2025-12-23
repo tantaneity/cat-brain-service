@@ -21,6 +21,8 @@ class EnvConstants:
 
     HUNGER_PER_STEP: float = 1.0
     ENERGY_PER_STEP: float = 0.5
+    HUNGER_DEGRADATION_FACTOR: float = 0.015
+    ENERGY_DEGRADATION_FACTOR: float = 0.012
     FOOD_HUNGER_REDUCTION: float = 30.0
     SLEEP_ENERGY_GAIN: float = 10.0
     MOVE_DISTANCE: float = 1.0
@@ -120,8 +122,14 @@ class CatEnvironment(gym.Env):
         self.steps += 1
         reward = EnvConstants.REWARD_STEP
 
-        self.hunger += EnvConstants.HUNGER_PER_STEP
-        self.energy -= EnvConstants.ENERGY_PER_STEP
+        # Exponential degradation: hungrier cats get hungrier faster
+        hunger_multiplier = 1.0 + (self.hunger / EnvConstants.MAX_HUNGER) * EnvConstants.HUNGER_DEGRADATION_FACTOR
+        self.hunger += EnvConstants.HUNGER_PER_STEP * hunger_multiplier
+
+        # Exponential degradation: more tired cats get tired faster
+        energy_deficit = EnvConstants.MAX_ENERGY - self.energy
+        energy_multiplier = 1.0 + (energy_deficit / EnvConstants.MAX_ENERGY) * EnvConstants.ENERGY_DEGRADATION_FACTOR
+        self.energy -= EnvConstants.ENERGY_PER_STEP * energy_multiplier
 
         if action == CatAction.MOVE_TO_FOOD:
             self.distance_to_food -= EnvConstants.MOVE_DISTANCE
