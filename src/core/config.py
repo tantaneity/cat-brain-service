@@ -1,6 +1,14 @@
 from pydantic_settings import BaseSettings
 
 
+PERSONALITY_CONFIG = {
+    "balanced": {"hunger": 1.0, "energy": 1.0, "distance_food": 1.0, "distance_toy": 1.0},
+    "lazy": {"hunger": 0.8, "energy": 1.5, "distance_food": 1.1, "distance_toy": 0.7},
+    "foodie": {"hunger": 1.4, "energy": 0.7, "distance_food": 0.7, "distance_toy": 1.3},
+    "playful": {"hunger": 0.7, "energy": 0.9, "distance_food": 1.2, "distance_toy": 0.6},
+}
+
+
 class PPOConfig:
     LEARNING_RATE: float = 3e-4
     N_STEPS: int = 2048

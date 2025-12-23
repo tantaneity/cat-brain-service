@@ -4,7 +4,7 @@ from typing import Optional
 
 import numpy as np
 
-from src.core.config import Settings
+from src.core.config import Settings, PERSONALITY_CONFIG
 from src.inference.cache import PredictionCache
 from src.inference.model_loader import ModelLoader
 from src.utils.logger import get_logger
@@ -17,19 +17,12 @@ QUEUE_TIMEOUT: float = 1.0
 class PersonalityModifier:
     """Modifies observation based on cat personality"""
     
-    MODIFIERS = {
-        "balanced": {"hunger": 1.0, "energy": 1.0, "distance_food": 1.0, "distance_toy": 1.0},
-        "lazy": {"hunger": 0.8, "energy": 1.5, "distance_food": 1.1, "distance_toy": 0.7},
-        "foodie": {"hunger": 1.4, "energy": 0.7, "distance_food": 0.7, "distance_toy": 1.3},
-        "playful": {"hunger": 0.7, "energy": 0.9, "distance_food": 1.2, "distance_toy": 0.6},
-    }
-    
     @staticmethod
     def apply(observation: np.ndarray, personality: str) -> np.ndarray:
-        if personality not in PersonalityModifier.MODIFIERS:
+        if personality not in PERSONALITY_CONFIG:
             return observation
         
-        mods = PersonalityModifier.MODIFIERS[personality]
+        mods = PERSONALITY_CONFIG[personality]
         modified = observation.copy()
         
         modified[0] *= mods["hunger"]
