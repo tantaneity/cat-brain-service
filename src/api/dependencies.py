@@ -1,4 +1,4 @@
-"""Dependency injection container for FastAPI"""
+
 from fastapi import Request
 
 from src.core.config import Settings

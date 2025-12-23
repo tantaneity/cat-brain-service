@@ -1,4 +1,4 @@
-"""Health check endpoints"""
+
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import PlainTextResponse
 
@@ -24,7 +24,7 @@ async def health_check(
     config: Settings = Depends(get_settings),
     start_time: float = Depends(get_start_time),
 ):
-    """Get service health status"""
+
     status = get_health_status(model_loader, predictor, config, start_time)
     return HealthCheck(**status)
 
@@ -34,7 +34,7 @@ async def readiness_check(
     model_loader: ModelLoader = Depends(get_model_loader),
     config: Settings = Depends(get_settings),
 ):
-    """Check if service is ready to accept requests"""
+
     status = get_readiness_status(model_loader, config)
     if not status["ready"]:
         raise HTTPException(status_code=503, detail="Service not ready")
@@ -43,11 +43,11 @@ async def readiness_check(
 
 @router.get("/live")
 async def liveness_check():
-    """Check if service is alive"""
+
     return get_liveness_status()
 
 
 @router.get("/metrics", response_class=PlainTextResponse)
 async def metrics():
-    """Get Prometheus metrics"""
+
     return get_metrics()

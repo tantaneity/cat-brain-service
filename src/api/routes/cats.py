@@ -1,4 +1,4 @@
-"""Cat management endpoints"""
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from src.api.dependencies import get_cat_service
@@ -16,7 +16,7 @@ async def create_cat(
     request: CreateCatRequest,
     cat_service: CatService = Depends(get_cat_service),
 ):
-    """Create a new cat with a brain initialized from the default model"""
+
     try:
         result = cat_service.create_cat(request.cat_id, request.personality.value)
         return CreateCatResponse(**result)
@@ -34,7 +34,7 @@ async def get_cat_info(
     cat_id: str,
     cat_service: CatService = Depends(get_cat_service),
 ):
-    """Get information about a specific cat"""
+
     try:
         info = cat_service.get_cat_info(cat_id)
         return CatInfo(**info)

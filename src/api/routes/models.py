@@ -1,4 +1,4 @@
-"""Model management endpoints"""
+
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -12,7 +12,7 @@ router = APIRouter(prefix="/models", tags=["models"])
 
 @router.get("", response_model=List[str])
 async def list_models(model_loader: ModelLoader = Depends(get_model_loader)):
-    """List all available model versions"""
+
     return model_loader.list_versions()
 
 
@@ -21,7 +21,7 @@ async def get_model_info(
     version: str,
     model_loader: ModelLoader = Depends(get_model_loader),
 ):
-    """Get information about a specific model version"""
+
     info = model_loader.get_model_info(version)
     if info.get("trained_at") == "unknown":
         raise HTTPException(status_code=404, detail=f"Model version '{version}' not found")

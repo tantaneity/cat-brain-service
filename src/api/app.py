@@ -1,4 +1,4 @@
-"""Application factory and configuration"""
+
 import time
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
@@ -21,11 +21,11 @@ logger = get_logger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    """Application lifespan handler"""
+
     setup_logger(settings.LOG_LEVEL)
     logger.info("starting_service", version="1.0.0")
 
-    # Initialize components
+
     model_loader = ModelLoader(settings)
 
     try:
@@ -40,7 +40,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     action_history = ActionHistory()
     cat_service = CatService(trainer, model_loader, action_history)
 
-    # Store in app state
+
     app.state.settings = settings
     app.state.model_loader = model_loader
     app.state.predictor = predictor
@@ -53,13 +53,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     yield
 
-    # Cleanup
+
     predictor.stop()
     logger.info("service_stopped")
 
 
 def create_app() -> FastAPI:
-    """Create and configure FastAPI application"""
+
     app = FastAPI(
         title="Cat Brain Service",
         description="ML microservice for cat decision making",
@@ -67,12 +67,12 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # Add middleware
+
     app.add_middleware(MetricsMiddleware)
     app.add_middleware(LoggingMiddleware)
     app.add_middleware(RequestIdMiddleware)
 
-    # Include routers
+
     app.include_router(api_router)
 
     return app

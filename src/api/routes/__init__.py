@@ -1,4 +1,4 @@
-"""Routes module initialization"""
+
 from fastapi import APIRouter
 
 from src.api.routes import cats, models, monitoring, predictions

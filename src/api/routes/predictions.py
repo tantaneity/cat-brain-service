@@ -1,4 +1,4 @@
-"""Prediction endpoints"""
+
 import numpy as np
 from fastapi import APIRouter, Depends, HTTPException
 
