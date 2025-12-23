@@ -31,7 +31,7 @@ class EnvConstants:
     TIRED_THRESHOLD: float = 30.0
     CRITICAL_TIRED_THRESHOLD: float = 15.0
     
-    # Play and eating behavior thresholds
+
     INEFFICIENT_EATING_THRESHOLD: float = 40.0
     PLAY_HUNGER_THRESHOLD: float = 60.0
     PLAY_ENERGY_THRESHOLD: float = 40.0
@@ -75,7 +75,16 @@ class CatEnvironment(gym.Env):
         self.render_mode = render_mode
 
         self.observation_space = spaces.Box(
-            low=np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
+            low=np.array([
+                0.0,  # hunger
+                0.0,  # energy
+                0.0,  # distance_to_food
+                0.0,  # distance_to_toy
+                0.0,  # mood
+                EnvConstants.MIN_PERSONALITY_SCORE,  # lazy_score
+                EnvConstants.MIN_PERSONALITY_SCORE,  # foodie_score
+                EnvConstants.MIN_PERSONALITY_SCORE,  # playful_score
+            ]),
             high=np.array([
                 EnvConstants.MAX_HUNGER,
                 EnvConstants.MAX_ENERGY,
@@ -167,11 +176,11 @@ class CatEnvironment(gym.Env):
         self.steps += 1
         reward = EnvConstants.REWARD_STEP
 
-        # Exponential degradation: hungrier cats get hungrier faster
+
         hunger_multiplier = 1.0 + (self.hunger / EnvConstants.MAX_HUNGER) * EnvConstants.HUNGER_DEGRADATION_FACTOR
         self.hunger += EnvConstants.HUNGER_PER_STEP * hunger_multiplier
 
-        # Exponential degradation: more tired cats get tired faster
+
         energy_deficit = EnvConstants.MAX_ENERGY - self.energy
         energy_multiplier = 1.0 + (energy_deficit / EnvConstants.MAX_ENERGY) * EnvConstants.ENERGY_DEGRADATION_FACTOR
         self.energy -= EnvConstants.ENERGY_PER_STEP * energy_multiplier
@@ -209,7 +218,7 @@ class CatEnvironment(gym.Env):
         self.hunger = np.clip(self.hunger, 0.0, EnvConstants.MAX_HUNGER)
         self.energy = np.clip(self.energy, 0.0, EnvConstants.MAX_ENERGY)
 
-        # Update mood based on recent rewards
+
         self.recent_rewards.append(reward)
         if len(self.recent_rewards) > EnvConstants.MOOD_HISTORY_WINDOW:
             self.recent_rewards.pop(0)
@@ -219,34 +228,34 @@ class CatEnvironment(gym.Env):
         self.mood += float(mood_delta) - EnvConstants.MOOD_DECAY_RATE
         self.mood = np.clip(self.mood, 0.0, EnvConstants.MAX_MOOD)
         
-        # Good mood makes cats more playful
+
         if action == CatAction.MOVE_TO_TOY and self.mood > EnvConstants.GOOD_MOOD_THRESHOLD:
             reward += EnvConstants.GOOD_MOOD_PLAY_BONUS
 
-        # Update personality scores based on actions (personality drift)
+
         drift_rate = EnvConstants.PERSONALITY_DRIFT_RATE
         
         if action == CatAction.SLEEP or action == CatAction.IDLE:
-            # Lazy behavior increases lazy score
+
             self.personality_scores["lazy"] = min(
                 EnvConstants.MAX_PERSONALITY_SCORE,
                 self.personality_scores["lazy"] + drift_rate
             )
-            # Decreases playful score
+
             self.personality_scores["playful"] = max(
                 EnvConstants.MIN_PERSONALITY_SCORE,
                 self.personality_scores["playful"] - drift_rate * EnvConstants.PLAYFUL_DRIFT_REDUCTION
             )
         
         if action == CatAction.MOVE_TO_FOOD:
-            # Eating behavior increases foodie score
+
             self.personality_scores["foodie"] = min(
                 EnvConstants.MAX_PERSONALITY_SCORE,
                 self.personality_scores["foodie"] + drift_rate
             )
         
         if action == CatAction.MOVE_TO_TOY:
-            # Playing increases playful score, decreases lazy
+
             self.personality_scores["playful"] = min(
                 EnvConstants.MAX_PERSONALITY_SCORE,
                 self.personality_scores["playful"] + drift_rate
