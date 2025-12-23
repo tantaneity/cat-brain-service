@@ -28,6 +28,7 @@ from src.core.config import Settings, settings
 from src.core.environment import CatAction as CatActionEnum
 from src.inference.model_loader import ModelLoader
 from src.inference.predictor import BatchPredictor
+from src.services.cat_service import CatAlreadyExistsError, CatNotFoundError, CatService
 from src.training.trainer import CatBrainTrainer
 from src.utils.action_history import ActionHistory
 from src.utils.logger import get_logger, setup_logger
@@ -60,12 +61,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     trainer = CatBrainTrainer(settings)
     action_history = ActionHistory()
+    cat_service = CatService(trainer, model_loader, action_history)
 
     app.state.settings = settings
     app.state.model_loader = model_loader
     app.state.predictor = predictor
     app.state.trainer = trainer
     app.state.action_history = action_history
+    app.state.cat_service = cat_service
     app.state.start_time = time.time()
 
     logger.info("service_started")
@@ -106,6 +109,10 @@ def get_trainer() -> CatBrainTrainer:
 
 def get_action_history() -> ActionHistory:
     return app.state.action_history
+
+
+def get_cat_service() -> CatService:
+    return app.state.cat_service
 
 
 @app.post("/predict", response_model=CatAction, responses={500: {"model": ErrorResponse}})
@@ -203,62 +210,29 @@ async def metrics():
 @app.post("/cats", response_model=CreateCatResponse, responses={400: {"model": ErrorResponse}, 409: {"model": ErrorResponse}})
 async def create_cat(
     request: CreateCatRequest,
-    trainer: CatBrainTrainer = Depends(get_trainer),
-    model_loader: ModelLoader = Depends(get_model_loader),
+    cat_service: CatService = Depends(get_cat_service),
 ):
     """Create a new cat with a brain initialized from the default model"""
-    cat_id = request.cat_id
-    
-    cat_brain_path = model_loader.model_path / "cats" / cat_id / "latest" / "cat_brain.zip"
-    if cat_brain_path.exists():
-        raise HTTPException(
-            status_code=409,
-            detail=f"Cat '{cat_id}' already exists. Use a different cat_id or delete the existing cat first."
-        )
-    
     try:
-        brain_path = trainer.create_cat_brain(cat_id)
-        
-        from datetime import datetime
-        return CreateCatResponse(
-            cat_id=cat_id,
-            personality=request.personality.value,
-            brain_path=str(brain_path),
-            created_at=datetime.now().isoformat(),
-            message="Cat brain created successfully from default model",
-        )
+        result = cat_service.create_cat(request.cat_id, request.personality.value)
+        return CreateCatResponse(**result)
+    except CatAlreadyExistsError as e:
+        raise HTTPException(status_code=409, detail=str(e))
     except FileNotFoundError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error("cat_creation_error", cat_id=cat_id, error=str(e))
+        logger.error("cat_creation_error", cat_id=request.cat_id, error=str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/cats/{cat_id}", response_model=CatInfo, responses={404: {"model": ErrorResponse}})
 async def get_cat_info(
     cat_id: str,
-    model_loader: ModelLoader = Depends(get_model_loader),
-    action_history: ActionHistory = Depends(get_action_history),
+    cat_service: CatService = Depends(get_cat_service),
 ):
     """Get information about a specific cat"""
-    cat_brain_path = model_loader.model_path / "cats" / cat_id / "latest" / "cat_brain.zip"
-    
-    if not cat_brain_path.exists():
-        raise HTTPException(status_code=404, detail=f"Cat '{cat_id}' not found")
-    
-    metadata_path = cat_brain_path.parent / "metadata.json"
-    created_at = None
-    if metadata_path.exists():
-        import json
-        with open(metadata_path) as f:
-            metadata = json.load(f)
-            created_at = metadata.get("created_at")
-    
-    stats = action_history.get_history_stats(cat_id)
-    
-    return CatInfo(
-        cat_id=cat_id,
-        model_path=str(cat_brain_path),
-        created_at=created_at,
-        total_actions=stats["total_actions"],
-    )
+    try:
+        info = cat_service.get_cat_info(cat_id)
+        return CatInfo(**info)
+    except CatNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
