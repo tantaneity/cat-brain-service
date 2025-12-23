@@ -3,6 +3,7 @@ import numpy as np
 from fastapi import APIRouter, Depends, HTTPException
 
 from src.api.dependencies import get_predictor
+from src.api.observation_builder import build_observation
 from src.api.schemas import (
     BatchCatActions,
     BatchCatStates,
@@ -32,19 +33,7 @@ async def predict(
     predictor: BatchPredictor = Depends(get_predictor),
 ):
     try:
-        obs = np.array(
-            [
-                state.hunger,
-                state.energy,
-                state.distance_to_food,
-                state.distance_to_toy,
-                state.mood,
-                state.lazy_score,
-                state.foodie_score,
-                state.playful_score,
-            ],
-            dtype=np.float32,
-        )
+        obs = build_observation(state)
         action = await predictor.predict_single(
             obs,
             cat_id=state.cat_id,
@@ -65,22 +54,7 @@ async def predict_batch(
     predictor: BatchPredictor = Depends(get_predictor),
 ):
     try:
-        observations = [
-            np.array(
-                [
-                    s.hunger,
-                    s.energy,
-                    s.distance_to_food,
-                    s.distance_to_toy,
-                    s.mood,
-                    s.lazy_score,
-                    s.foodie_score,
-                    s.playful_score,
-                ],
-                dtype=np.float32,
-            )
-            for s in batch.states
-        ]
+        observations = [build_observation(s) for s in batch.states]
         actions = await predictor.predict_batch(observations)
         return BatchCatActions(actions=actions)
     except FileNotFoundError:

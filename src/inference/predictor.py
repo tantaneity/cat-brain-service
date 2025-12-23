@@ -5,6 +5,7 @@ from typing import Optional
 import numpy as np
 
 from src.core.config import Settings, PERSONALITY_CONFIG
+from src.core.environment import EnvConstants, ObservationIndex
 from src.inference.cache import PredictionCache
 from src.inference.model_loader import ModelLoader
 from src.utils.logger import get_logger
@@ -15,7 +16,11 @@ QUEUE_TIMEOUT: float = 1.0
 
 
 class PersonalityModifier:
-
+    """Modifies observation based on cat personality
+    
+    Only modifies hunger, energy, and distances.
+    Mood and personality scores remain unchanged.
+    """
     
     @staticmethod
     def apply(observation: np.ndarray, personality: str) -> np.ndarray:
@@ -25,15 +30,27 @@ class PersonalityModifier:
         mods = PERSONALITY_CONFIG[personality]
         modified = observation.copy()
         
-        modified[0] *= mods["hunger"]
-        modified[1] *= mods["energy"]
-        modified[2] *= mods["distance_food"]
-        modified[3] *= mods["distance_toy"]
+
+        modified[ObservationIndex.HUNGER] *= mods["hunger"]
+        modified[ObservationIndex.ENERGY] *= mods["energy"]
+        modified[ObservationIndex.DISTANCE_FOOD] *= mods["distance_food"]
+        modified[ObservationIndex.DISTANCE_TOY] *= mods["distance_toy"]
         
-        modified[0] = np.clip(modified[0], 0, 100)
-        modified[1] = np.clip(modified[1], 0, 100)
-        modified[2] = np.clip(modified[2], 0, 10)
-        modified[3] = np.clip(modified[3], 0, 10)
+
+        
+
+        modified[ObservationIndex.HUNGER] = np.clip(
+            modified[ObservationIndex.HUNGER], 0, EnvConstants.MAX_HUNGER
+        )
+        modified[ObservationIndex.ENERGY] = np.clip(
+            modified[ObservationIndex.ENERGY], 0, EnvConstants.MAX_ENERGY
+        )
+        modified[ObservationIndex.DISTANCE_FOOD] = np.clip(
+            modified[ObservationIndex.DISTANCE_FOOD], 0, EnvConstants.MAX_DISTANCE
+        )
+        modified[ObservationIndex.DISTANCE_TOY] = np.clip(
+            modified[ObservationIndex.DISTANCE_TOY], 0, EnvConstants.MAX_DISTANCE
+        )
         
         return modified
 

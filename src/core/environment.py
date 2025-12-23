@@ -13,6 +13,17 @@ class CatAction(IntEnum):
     SLEEP = 3
 
 
+class ObservationIndex(IntEnum):
+    HUNGER = 0
+    ENERGY = 1
+    DISTANCE_FOOD = 2
+    DISTANCE_TOY = 3
+    MOOD = 4
+    LAZY_SCORE = 5
+    FOODIE_SCORE = 6
+    PLAYFUL_SCORE = 7
+
+
 class EnvConstants:
     MAX_HUNGER: float = 100.0
     MAX_ENERGY: float = 100.0
