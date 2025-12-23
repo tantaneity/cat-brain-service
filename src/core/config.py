@@ -37,7 +37,7 @@ class Settings(BaseSettings):
 
     CACHE_ENABLED: bool = False
     REDIS_URL: str = "redis://localhost:6379"
-    CACHE_TTL: int = 60
+    CACHE_TTL: int = 300
 
     HOST: str = "0.0.0.0"
     PORT: int = 8000
