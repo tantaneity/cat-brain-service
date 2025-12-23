@@ -36,19 +36,38 @@ class ModelLoader:
             model_file = version_path / "cat_brain.zip"
 
         if not model_file.exists():
-            raise FileNotFoundError(f"Model not found: {model_file}")
+            logger.error(
+                "model_not_found",
+                version=version,
+                cat_id=cat_id,
+                path=str(model_file),
+            )
+            raise FileNotFoundError(
+                f"Model not found at {model_file}. "
+                f"Please train a model first or check MODEL_PATH and MODEL_VERSION settings."
+            )
 
-        model = PPO.load(str(model_file))
-        self.models[model_key] = model
+        try:
+            model = PPO.load(str(model_file))
+            self.models[model_key] = model
 
-        logger.info(
-            "model_loaded",
-            version=version,
-            cat_id=cat_id,
-            path=str(model_file),
-        )
+            logger.info(
+                "model_loaded",
+                version=version,
+                cat_id=cat_id,
+                path=str(model_file),
+            )
 
-        return model
+            return model
+        except Exception as e:
+            logger.error(
+                "model_load_failed",
+                version=version,
+                cat_id=cat_id,
+                path=str(model_file),
+                error=str(e),
+            )
+            raise
 
     def _get_model_key(self, version: str, cat_id: Optional[str]) -> str:
         if cat_id:
