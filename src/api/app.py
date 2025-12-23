@@ -33,11 +33,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     except FileNotFoundError:
         logger.warning("model_not_found", version=settings.MODEL_VERSION)
 
-    predictor = BatchPredictor(model_loader, settings)
+    action_history = ActionHistory()
+    predictor = BatchPredictor(model_loader, settings, action_history)
     predictor.start()
 
     trainer = CatBrainTrainer(settings)
-    action_history = ActionHistory()
     cat_service = CatService(trainer, model_loader, action_history)
 
 

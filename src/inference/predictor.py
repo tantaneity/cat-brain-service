@@ -8,6 +8,7 @@ from src.core.config import Settings, PERSONALITY_CONFIG
 from src.core.environment import EnvConstants, ObservationIndex
 from src.inference.cache import PredictionCache
 from src.inference.model_loader import ModelLoader
+from src.utils.action_history import ActionHistory
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -62,9 +63,15 @@ class PredictionRequest:
 
 
 class BatchPredictor:
-    def __init__(self, model_loader: ModelLoader, config: Settings):
+    def __init__(
+        self,
+        model_loader: ModelLoader,
+        config: Settings,
+        action_history: Optional[ActionHistory] = None,
+    ):
         self.model_loader = model_loader
         self.config = config
+        self.action_history = action_history
         self.batch_size = config.BATCH_SIZE
         self.batch_timeout = config.BATCH_TIMEOUT
 
@@ -108,6 +115,10 @@ class BatchPredictor:
 
         if use_cache:
             await self.cache.set(modified_obs, action_int)
+        
+
+        if self.action_history and cat_id:
+            self.action_history.log_action(cat_id, modified_obs, action_int)
 
         return action_int
 

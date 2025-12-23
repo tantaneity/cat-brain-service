@@ -238,7 +238,7 @@ class CatEnvironment(gym.Env):
         avg_recent_reward = np.mean(self.recent_rewards) if self.recent_rewards else 0.0
         mood_delta = avg_recent_reward * EnvConstants.MOOD_REWARD_SCALE
         
-        # Adaptive decay: higher mood decays faster (more to lose), lower mood decays slower
+
         mood_decay = EnvConstants.MOOD_DECAY_BASE + (self.mood * EnvConstants.MOOD_DECAY_SCALE)
         self.mood += float(mood_delta) - mood_decay
         self.mood = np.clip(self.mood, 0.0, EnvConstants.MAX_MOOD)
