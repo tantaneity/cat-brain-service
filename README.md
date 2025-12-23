@@ -8,7 +8,7 @@ graph TB
         ENV[Cat Environment<br/>Gymnasium]
         PPO[PPO Algorithm<br/>Stable-Baselines3]
         CALLBACKS[Training Callbacks<br/>Logging, Checkpoints]
-        MODELS[(Model Storage<br/>models/)]
+        MODELS[(Model Storage<br/>models/ + models/cats/)]
         
         ENV --> PPO
         PPO --> CALLBACKS
@@ -16,41 +16,55 @@ graph TB
     end
     
     subgraph API["FastAPI Service"]
-        REQUEST[HTTP Request<br/>/predict]
-        SCHEMAS[Pydantic Schemas<br/>cat_id + personality]
+        REQUEST[HTTP Request<br/>/predict, /cats]
+        ROUTES[API Routes<br/>predictions, cats, models]
         MIDDLEWARE[Middleware<br/>Logging, Metrics]
+        DEPS[Dependencies<br/>DI Container]
         
         REQUEST --> MIDDLEWARE
-        MIDDLEWARE --> SCHEMAS
+        MIDDLEWARE --> ROUTES
+        ROUTES --> DEPS
+    end
+    
+    subgraph Services["Service Layer"]
+        CAT_SERVICE[CatService<br/>Business Logic]
+        ACTION_HISTORY[ActionHistory<br/>JSONL Storage]
+        
+        DEPS --> CAT_SERVICE
+        CAT_SERVICE --> ACTION_HISTORY
     end
     
     subgraph Inference["Inference Engine"]
         PREDICTOR[Batch Predictor]
-        PERSONALITY[Personality Modifier<br/>lazy/foodie/playful]
-        CACHE[Redis Cache]
+        PERSONALITY[Personality Config<br/>lazy/foodie/playful]
+        CACHE[Redis Cache<br/>5min TTL]
         LOADER[Model Loader<br/>Default + Individual]
         
-        SCHEMAS --> PREDICTOR
+        DEPS --> PREDICTOR
         PREDICTOR --> PERSONALITY
         PERSONALITY --> CACHE
         CACHE -.cache miss.-> LOADER
         LOADER --> MODELS
+        CAT_SERVICE --> LOADER
     end
     
     subgraph Output["Response"]
         ACTION[Cat Action<br/>0-3: idle/eat/play/sleep]
+        CAT_INFO[Cat Info<br/>brain path, actions count]
         METRICS[Prometheus Metrics]
         LOGS[Structured Logs<br/>JSON]
         
         PREDICTOR --> ACTION
+        CAT_SERVICE --> CAT_INFO
         MIDDLEWARE --> METRICS
         MIDDLEWARE --> LOGS
     end
     
     style Training fill:#e1f5ff
     style API fill:#fff3e0
+    style Services fill:#e8f5e9
     style Inference fill:#f3e5f5
-    style Output fill:#e8f5e9
+    style Output fill:#ffe0b2
 ```
 
 ## Request Flow
@@ -58,20 +72,23 @@ graph TB
 ```mermaid
 sequenceDiagram
     participant Client
-    participant API as FastAPI
+    participant Routes as API Routes
     participant Middleware
+    participant CatService
     participant Predictor
-    participant PersonalityMod as Personality Modifier
+    participant PersonalityMod as Personality Config
     participant Cache
     participant ModelLoader
     participant Model as PPO Model
+    participant History as ActionHistory
     
-    Client->>API: POST /predict<br/>{cat_id, personality, hunger, energy, ...}
-    API->>Middleware: Log request
+    Client->>Routes: POST /predict<br/>{cat_id, personality, hunger, energy, ...}
+    Routes->>Middleware: Log request
     Middleware->>Predictor: predict_single(obs, cat_id, personality)
     
-    Predictor->>PersonalityMod: apply(observation, personality)
-    PersonalityMod-->>Predictor: modified_observation
+    Predictor->>PersonalityMod: get config for personality
+    PersonalityMod-->>Predictor: modifiers (hunger×1.4, etc)
+    Predictor->>Predictor: apply modifiers to observation
     
     Predictor->>Cache: get(modified_obs)
     
@@ -88,11 +105,12 @@ sequenceDiagram
         
         Predictor->>Model: predict(modified_obs)
         Model-->>Predictor: action
-        Predictor->>Cache: set(modified_obs, action)
+        Predictor->>Cache: set(modified_obs, action, ttl=300s)
     end
     
-    Predictor-->>API: action_int
-    API-->>Client: {action, action_name}
+    Predictor->>History: log_action(cat_id, obs, action)
+    Predictor-->>Routes: action_int
+    Routes-->>Client: {action, action_name}
     Middleware->>Prometheus: record metrics
 ```
 
@@ -129,7 +147,7 @@ graph LR
         OBS[Original Observation<br/>hunger, energy, dist_food, dist_toy]
     end
     
-    subgraph Modifiers["Personality Modifiers"]
+    subgraph Config["PERSONALITY_CONFIG (config.py)"]
         BALANCED[Balanced<br/>×1.0 all]
         LAZY[Lazy<br/>energy×1.5, hunger×0.8]
         FOODIE[Foodie<br/>hunger×1.4, energy×0.7]
@@ -137,18 +155,20 @@ graph LR
     end
     
     subgraph Processing
-        APPLY[Apply Modifier] --> CLIP[Clip Values<br/>0-100, 0-10]
+        GET[Get Modifiers] --> APPLY[Apply to Observation]
+        APPLY --> CLIP[Clip Values<br/>hunger,energy: 0-100<br/>distances: 0-10]
     end
     
     subgraph Output
         MODIFIED[Modified Observation]
     end
     
-    OBS --> BALANCED & LAZY & FOODIE & PLAYFUL
-    BALANCED & LAZY & FOODIE & PLAYFUL --> APPLY
+    OBS --> GET
+    BALANCED & LAZY & FOODIE & PLAYFUL --> GET
     CLIP --> MODIFIED
     MODIFIED --> MODEL[ML Model]
     
+    style Config fill:#e1f5fe
     style LAZY fill:#b3e5fc
     style FOODIE fill:#ffccbc
     style PLAYFUL fill:#c5e1a5
@@ -159,26 +179,34 @@ graph LR
 ```mermaid
 flowchart LR
     subgraph Development
-        CODE[Code Changes] --> TRAIN[Run Trainer<br/>python -m src.training.trainer]
-        TRAIN --> EVAL[Evaluate Model<br/>10 episodes]
+        CODE[Code Changes] --> CHOOSE{Training Type?}
+        CHOOSE -->|Default| TRAIN_DEFAULT[Train Default Brain<br/>python -m src.training.trainer]
+        CHOOSE -->|Individual| TRAIN_CAT[Fine-tune Cat Brain<br/>trainer.fine_tune(cat_id)]
+        TRAIN_DEFAULT --> EVAL[Evaluate Model<br/>10 episodes]
+        TRAIN_CAT --> EVAL
     end
     
     subgraph Storage
-        EVAL --> SAVE[Save Model<br/>models/&lt;timestamp&gt;/]
-        SAVE --> SYMLINK[Update symlink<br/>models/latest/]
-        SAVE --> META[Save Metadata<br/>version, reward, etc]
+        EVAL --> SAVE{Save Location?}
+        SAVE -->|Default| SAVE_DEFAULT[models/&lt;timestamp&gt;/]
+        SAVE -->|Individual| SAVE_CAT[models/cats/&lt;cat_id&gt;/&lt;timestamp&gt;/]
+        SAVE_DEFAULT --> SYMLINK_DEFAULT[Update symlink<br/>models/latest/]
+        SAVE_CAT --> SYMLINK_CAT[Update symlink<br/>models/cats/&lt;cat_id&gt;/latest/]
+        SAVE_DEFAULT & SAVE_CAT --> META[Save Metadata<br/>version, reward, cat_id]
     end
     
     subgraph Production
-        SYMLINK --> RELOAD{API Running?}
+        SYMLINK_DEFAULT & SYMLINK_CAT --> RELOAD{API Running?}
         RELOAD -->|Yes| HOT[Hot Reload<br/>Load new model]
         RELOAD -->|No| COLD[Cold Start<br/>Load on startup]
         HOT --> SERVE[Serve Predictions]
         COLD --> SERVE
     end
     
-    style TRAIN fill:#ffeb3b
-    style SAVE fill:#4caf50
+    style TRAIN_DEFAULT fill:#ffeb3b
+    style TRAIN_CAT fill:#ff9800
+    style SAVE_DEFAULT fill:#4caf50
+    style SAVE_CAT fill:#66bb6a
     style SERVE fill:#2196f3
 ```
 
@@ -221,12 +249,17 @@ stateDiagram-v2
 graph TD
     subgraph Core
         ENV[environment.py<br/>Gymnasium Env]
-        CONFIG[config.py<br/>Settings]
+        CONFIG[config.py<br/>Settings + PersonalityConfig]
     end
     
     subgraph Training
-        TRAINER[trainer.py<br/>PPO Training]
+        TRAINER[trainer.py<br/>PPO Training + Fine-tuning]
         CALLBACKS[callbacks.py<br/>Logging]
+    end
+    
+    subgraph Services
+        CAT_SERVICE[cat_service.py<br/>Cat Management]
+        ACTION_HIST[action_history.py<br/>JSONL Storage]
     end
     
     subgraph Inference
@@ -236,7 +269,10 @@ graph TD
     end
     
     subgraph API
-        MAIN[main.py<br/>FastAPI App]
+        MAIN[main.py<br/>Entry Point]
+        APP[app.py<br/>FastAPI Factory]
+        DEPS[dependencies.py<br/>DI Container]
+        ROUTES[routes/<br/>predictions, cats, models, monitoring]
         SCHEMAS[schemas.py<br/>Pydantic Models]
         MIDDLEWARE_MOD[middleware.py<br/>Logging]
         HEALTH[health.py<br/>Health Checks]
@@ -249,27 +285,36 @@ graph TD
     
     CONFIG --> TRAINER
     CONFIG --> PREDICTOR
-    CONFIG --> MAIN
+    CONFIG --> APP
     
     ENV --> TRAINER
     TRAINER --> CALLBACKS
+    TRAINER --> CAT_SERVICE
     
     LOADER --> PREDICTOR
+    LOADER --> CAT_SERVICE
     CACHE_MOD --> PREDICTOR
     
-    SCHEMAS --> MAIN
-    PREDICTOR --> MAIN
-    MIDDLEWARE_MOD --> MAIN
-    HEALTH --> MAIN
+    CAT_SERVICE --> ACTION_HIST
+    
+    MAIN --> APP
+    APP --> ROUTES
+    APP --> DEPS
+    DEPS --> PREDICTOR
+    DEPS --> CAT_SERVICE
+    ROUTES --> SCHEMAS
+    ROUTES --> MIDDLEWARE_MOD
+    ROUTES --> HEALTH
     
     LOGGER --> TRAINER
-    LOGGER --> MAIN
+    LOGGER --> ROUTES
     METRICS_MOD --> MIDDLEWARE_MOD
     
     style Core fill:#e3f2fd
     style Training fill:#fff9c4
+    style Services fill:#e8f5e9
     style Inference fill:#f3e5f5
-    style API fill:#e8f5e9
+    style API fill:#ffe0b2
     style Utils fill:#fce4ec
 ```
 ## How to Actually Run This Thing
@@ -302,10 +347,10 @@ API's at `localhost:8000`, docs at `localhost:8000/docs` (FastAPI auto-docs ftw)
 
 ### Cache TTL & Why It Matters
 
-Redis cache is set to **1hr TTL** by default. Why? Cuz cat behaviors change throughout the day irl. If you're testing and cache is screwing with you:
-- Either wait it out (lol no)
+Redis cache is set to **5 min TTL** by default. Why? Cuz cat behaviors should adapt dynamically throughout gameplay. If you're testing and cache is screwing with you:
+- Either wait it out (5min isn't that long)
 - Restart Redis: `docker restart cat-brain-redis`
-- Or just change `CACHE_TTL` in config
+- Or just change `CACHE_TTL` in config (value in seconds)
 
 ### Model Versioning
 
