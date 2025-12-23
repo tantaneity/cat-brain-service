@@ -15,7 +15,7 @@ QUEUE_TIMEOUT: float = 1.0
 
 
 class PersonalityModifier:
-    """Modifies observation based on cat personality"""
+
     
     @staticmethod
     def apply(observation: np.ndarray, personality: str) -> np.ndarray:

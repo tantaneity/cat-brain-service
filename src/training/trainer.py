@@ -182,7 +182,7 @@ class CatBrainTrainer:
         cat_id: str,
         total_timesteps: int = 10_000,
     ) -> PPO:
-        """Fine-tune a cat's brain from their existing model"""
+
         cat_model_path = self.model_path / "cats" / cat_id / "latest" / "cat_brain.zip"
         
         if not cat_model_path.exists():

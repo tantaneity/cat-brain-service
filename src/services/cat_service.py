@@ -12,17 +12,17 @@ logger = get_logger(__name__)
 
 
 class CatAlreadyExistsError(Exception):
-    """Raised when trying to create a cat that already exists"""
+
     pass
 
 
 class CatNotFoundError(Exception):
-    """Raised when cat is not found"""
+
     pass
 
 
 class CatService:
-    """Service layer for cat brain management"""
+
     
     def __init__(
         self,
@@ -35,7 +35,7 @@ class CatService:
         self.action_history = action_history
     
     def create_cat(self, cat_id: str, personality: str) -> dict:
-        """Create a new cat with default brain"""
+
         cat_brain_path = self._get_cat_brain_path(cat_id)
         
         if cat_brain_path.exists():
@@ -54,7 +54,7 @@ class CatService:
         }
     
     def get_cat_info(self, cat_id: str) -> dict:
-        """Get information about a cat"""
+
         cat_brain_path = self._get_cat_brain_path(cat_id)
         
         if not cat_brain_path.exists():
@@ -78,9 +78,9 @@ class CatService:
         }
     
     def cat_exists(self, cat_id: str) -> bool:
-        """Check if cat exists"""
+
         return self._get_cat_brain_path(cat_id).exists()
     
     def _get_cat_brain_path(self, cat_id: str) -> Path:
-        """Get path to cat's brain file"""
+
         return self.model_loader.model_path / "cats" / cat_id / "latest" / "cat_brain.zip"

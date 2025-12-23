@@ -11,7 +11,7 @@ logger = get_logger(__name__)
 
 
 class ActionHistory:
-    """Stores cat action history for future training"""
+
     
     def __init__(self, history_path: str = "./models/history"):
         self.history_path = Path(history_path)
@@ -24,7 +24,7 @@ class ActionHistory:
         action: int,
         reward: Optional[float] = None,
     ) -> None:
-        """Log a single action for a cat"""
+
         cat_history_file = self.history_path / f"{cat_id}.jsonl"
         
         entry = {
@@ -41,7 +41,7 @@ class ActionHistory:
             logger.error("action_history_log_failed", cat_id=cat_id, error=str(e))
     
     def get_history(self, cat_id: str, limit: Optional[int] = None) -> list[dict]:
-        """Get action history for a cat"""
+
         cat_history_file = self.history_path / f"{cat_id}.jsonl"
         
         if not cat_history_file.exists():
@@ -61,7 +61,7 @@ class ActionHistory:
         return history
     
     def clear_history(self, cat_id: str) -> None:
-        """Clear history for a cat"""
+
         cat_history_file = self.history_path / f"{cat_id}.jsonl"
         
         if cat_history_file.exists():
@@ -69,7 +69,7 @@ class ActionHistory:
             logger.info("action_history_cleared", cat_id=cat_id)
     
     def get_history_stats(self, cat_id: str) -> dict:
-        """Get statistics about cat's action history"""
+
         history = self.get_history(cat_id)
         
         if not history:
