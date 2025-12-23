@@ -42,6 +42,7 @@ graph TB
         
         DEPS --> PREDICTOR
         PREDICTOR --> PERSONALITY
+        PREDICTOR --> ACTION_HISTORY
         PERSONALITY --> CACHE
         CACHE -.cache miss.-> LOADER
         LOADER --> MODELS
@@ -144,7 +145,7 @@ flowchart TD
 ```mermaid
 graph LR
     subgraph Input
-        OBS[Original Observation<br/>hunger, energy, dist_food, dist_toy]
+        OBS[Original Observation<br/>8 params: hunger, energy,<br/>dist_food, dist_toy,<br/>mood, lazy_score,<br/>foodie_score, playful_score]
     end
     
     subgraph Config["PERSONALITY_CONFIG (config.py)"]
@@ -155,18 +156,18 @@ graph LR
     end
     
     subgraph Processing
-        GET[Get Modifiers] --> APPLY[Apply to Observation]
-        APPLY --> CLIP[Clip Values<br/>hunger,energy: 0-100<br/>distances: 0-10]
+        GET[Get Modifiers] --> APPLY[Apply to Observation<br/>Only modifies indices 0-3<br/>mood & scores unchanged]
+        APPLY --> CLIP[Clip Values<br/>hunger,energy: 0-100<br/>distances: 0-10<br/>mood: 0-100<br/>scores: 0-100]
     end
     
     subgraph Output
-        MODIFIED[Modified Observation]
+        MODIFIED[Modified Observation<br/>8 params with personality applied]
     end
     
     OBS --> GET
     BALANCED & LAZY & FOODIE & PLAYFUL --> GET
     CLIP --> MODIFIED
-    MODIFIED --> MODEL[ML Model]
+    MODIFIED --> MODEL[ML Model<br/>expects 8 features]
     
     style Config fill:#e1f5fe
     style LAZY fill:#b3e5fc
