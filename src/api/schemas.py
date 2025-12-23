@@ -104,3 +104,50 @@ class HealthCheck(BaseModel):
 
 class ErrorResponse(BaseModel):
     detail: str
+
+class CreateCatRequest(BaseModel):
+    cat_id: str = Field(
+        description="Unique identifier for the cat",
+        min_length=1,
+        max_length=100,
+    )
+    personality: CatPersonality = Field(
+        default=CatPersonality.BALANCED,
+        description="Initial personality type for the cat",
+    )
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "cat_id": "whiskers_123",
+                "personality": "playful",
+            }
+        }
+    }
+
+
+class CreateCatResponse(BaseModel):
+    cat_id: str
+    personality: str
+    brain_path: str
+    created_at: str
+    message: str
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "cat_id": "whiskers_123",
+                "personality": "playful",
+                "brain_path": "models/cats/whiskers_123/latest/cat_brain.zip",
+                "created_at": "2025-12-23T10:30:00",
+                "message": "Cat brain created successfully from default model",
+            }
+        }
+    }
+
+
+class CatInfo(BaseModel):
+    cat_id: str
+    model_path: str
+    created_at: Optional[str] = None
+    total_actions: int = 0

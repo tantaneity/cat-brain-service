@@ -22,11 +22,19 @@ class CatBrainTrainer:
         self.model_path = Path(config.MODEL_PATH)
         self.model_path.mkdir(parents=True, exist_ok=True)
 
-    def train(self, total_timesteps: Optional[int] = None) -> PPO:
+    def train(
+        self,
+        total_timesteps: Optional[int] = None,
+        cat_id: Optional[str] = None,
+    ) -> PPO:
         if total_timesteps is None:
             total_timesteps = self.config.TOTAL_TIMESTEPS
 
-        logger.info("training_started", total_timesteps=total_timesteps)
+        logger.info(
+            "training_started",
+            total_timesteps=total_timesteps,
+            cat_id=cat_id,
+        )
 
         env = CatEnvironment()
 
@@ -60,9 +68,14 @@ class CatBrainTrainer:
 
         version = datetime.now().strftime("%Y%m%d_%H%M%S")
         mean_reward = self._evaluate_model(model, env)
-        self.save_model(model, version, total_timesteps, mean_reward)
+        self.save_model(model, version, total_timesteps, mean_reward, cat_id)
 
-        logger.info("training_completed", version=version, mean_reward=mean_reward)
+        logger.info(
+            "training_completed",
+            version=version,
+            mean_reward=mean_reward,
+            cat_id=cat_id,
+        )
 
         env.close()
         return model
@@ -80,7 +93,7 @@ class CatBrainTrainer:
             done = False
             while not done:
                 action, _ = model.predict(obs, deterministic=True)
-                obs, reward, terminated, truncated, _ = env.step(action)
+                obs, reward, terminated, truncated, _ = env.step(int(action))
                 episode_reward += float(reward)
                 done = terminated or truncated
             rewards.append(episode_reward)
@@ -92,8 +105,12 @@ class CatBrainTrainer:
         version: str,
         timesteps: int,
         mean_reward: float,
+        cat_id: Optional[str] = None,
     ) -> None:
-        version_path = self.model_path / version
+        if cat_id:
+            version_path = self.model_path / "cats" / cat_id / version
+        else:
+            version_path = self.model_path / version
         version_path.mkdir(parents=True, exist_ok=True)
 
         model_file = version_path / "cat_brain.zip"
@@ -111,7 +128,10 @@ class CatBrainTrainer:
         with open(metadata_file, "w") as f:
             json.dump(metadata, f, indent=2)
 
-        latest_link = self.model_path / "latest"
+        if cat_id:
+            latest_link = self.model_path / "cats" / cat_id / "latest"
+        else:
+            latest_link = self.model_path / "latest"
         
         if os.name == "nt":
             import shutil
@@ -125,6 +145,88 @@ class CatBrainTrainer:
             latest_link.symlink_to(version_path.name)
 
         logger.info("model_saved", version=version, path=str(version_path))
+
+    def create_cat_brain(self, cat_id: str) -> Path:
+        default_model_path = self.model_path / "latest" / "cat_brain.zip"
+        
+        if not default_model_path.exists():
+            raise FileNotFoundError(
+                f"Default model not found at {default_model_path}. Train a base model first."
+            )
+        
+        cat_brain_dir = self.model_path / "cats" / cat_id / "latest"
+        cat_brain_dir.mkdir(parents=True, exist_ok=True)
+        
+        cat_brain_path = cat_brain_dir / "cat_brain.zip"
+        
+        import shutil
+        shutil.copy2(default_model_path, cat_brain_path)
+        
+        metadata = {
+            "version": "latest",
+            "created_at": datetime.now().isoformat(),
+            "cat_id": cat_id,
+            "source": "default",
+            "algorithm": "PPO",
+        }
+        
+        metadata_file = cat_brain_dir / "metadata.json"
+        with open(metadata_file, "w") as f:
+            json.dump(metadata, f, indent=2)
+        
+        logger.info("cat_brain_created", cat_id=cat_id, path=str(cat_brain_path))
+        return cat_brain_path
+
+    def fine_tune(
+        self,
+        cat_id: str,
+        total_timesteps: int = 10_000,
+    ) -> PPO:
+        """Fine-tune a cat's brain from their existing model"""
+        cat_model_path = self.model_path / "cats" / cat_id / "latest" / "cat_brain.zip"
+        
+        if not cat_model_path.exists():
+            raise FileNotFoundError(
+                f"Cat brain not found for {cat_id}. Create the cat first."
+            )
+        
+        logger.info(
+            "fine_tuning_started",
+            cat_id=cat_id,
+            total_timesteps=total_timesteps,
+        )
+        
+        env = CatEnvironment()
+        model = PPO.load(str(cat_model_path), env=env)
+        
+        checkpoint_path = str(self.model_path / "cats" / cat_id / "checkpoints")
+        callbacks = get_training_callbacks(
+            checkpoint_path,
+            checkpoint_freq=TrainingConfig.CHECKPOINT_FREQ,
+            log_freq=TrainingConfig.LOG_FREQ,
+        )
+        callback_list = CallbackList(callbacks)
+        
+        model.learn(
+            total_timesteps=total_timesteps,
+            callback=callback_list,
+            progress_bar=True,
+            reset_num_timesteps=False,
+        )
+        
+        version = datetime.now().strftime("%Y%m%d_%H%M%S")
+        mean_reward = self._evaluate_model(model, env)
+        self.save_model(model, version, total_timesteps, mean_reward, cat_id)
+        
+        logger.info(
+            "fine_tuning_completed",
+            cat_id=cat_id,
+            version=version,
+            mean_reward=mean_reward,
+        )
+        
+        env.close()
+        return model
 
 
 def main():
