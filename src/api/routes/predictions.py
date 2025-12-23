@@ -33,7 +33,16 @@ async def predict(
 ):
     try:
         obs = np.array(
-            [state.hunger, state.energy, state.distance_to_food, state.distance_to_toy, state.mood],
+            [
+                state.hunger,
+                state.energy,
+                state.distance_to_food,
+                state.distance_to_toy,
+                state.mood,
+                state.lazy_score,
+                state.foodie_score,
+                state.playful_score,
+            ],
             dtype=np.float32,
         )
         action = await predictor.predict_single(
@@ -58,7 +67,16 @@ async def predict_batch(
     try:
         observations = [
             np.array(
-                [s.hunger, s.energy, s.distance_to_food, s.distance_to_toy, s.mood],
+                [
+                    s.hunger,
+                    s.energy,
+                    s.distance_to_food,
+                    s.distance_to_toy,
+                    s.mood,
+                    s.lazy_score,
+                    s.foodie_score,
+                    s.playful_score,
+                ],
                 dtype=np.float32,
             )
             for s in batch.states

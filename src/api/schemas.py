@@ -48,6 +48,24 @@ class CatState(BaseModel):
         le=EnvConstants.MAX_MOOD,
         description="Cat mood level (0-100, affects playfulness)",
     )
+    lazy_score: float = Field(
+        default=50.0,
+        ge=0,
+        le=100.0,
+        description="How lazy the cat has become (personality drift)",
+    )
+    foodie_score: float = Field(
+        default=50.0,
+        ge=0,
+        le=100.0,
+        description="How food-focused the cat has become (personality drift)",
+    )
+    playful_score: float = Field(
+        default=50.0,
+        ge=0,
+        le=100.0,
+        description="How playful the cat has become (personality drift)",
+    )
 
     model_config = {
         "json_schema_extra": {
@@ -59,6 +77,9 @@ class CatState(BaseModel):
                 "distance_to_food": 3.5,
                 "distance_to_toy": 7.2,
                 "mood": 65.0,
+                "lazy_score": 60.0,
+                "foodie_score": 45.0,
+                "playful_score": 30.0,
             }
         }
     }

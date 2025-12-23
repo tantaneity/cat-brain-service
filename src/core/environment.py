@@ -36,6 +36,10 @@ class EnvConstants:
     MOOD_REWARD_SCALE: float = 3.0
     MOOD_HISTORY_WINDOW: int = 10
 
+    PERSONALITY_DRIFT_RATE: float = 0.05
+    MAX_PERSONALITY_SCORE: float = 100.0
+    MIN_PERSONALITY_SCORE: float = 0.0
+
     REWARD_STEP: float = 0.5
     REWARD_EAT_HUNGRY: float = 10.0
     REWARD_SLEEP_TIRED: float = 8.0
@@ -62,13 +66,16 @@ class CatEnvironment(gym.Env):
         self.render_mode = render_mode
 
         self.observation_space = spaces.Box(
-            low=np.array([0.0, 0.0, 0.0, 0.0, 0.0]),
+            low=np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
             high=np.array([
                 EnvConstants.MAX_HUNGER,
                 EnvConstants.MAX_ENERGY,
                 EnvConstants.MAX_DISTANCE,
                 EnvConstants.MAX_DISTANCE,
                 EnvConstants.MAX_MOOD,
+                EnvConstants.MAX_PERSONALITY_SCORE,  # lazy_score
+                EnvConstants.MAX_PERSONALITY_SCORE,  # foodie_score
+                EnvConstants.MAX_PERSONALITY_SCORE,  # playful_score
             ]),
             dtype=np.float32,
         )
@@ -81,6 +88,11 @@ class CatEnvironment(gym.Env):
         self.distance_to_toy: float = 5.0
         self.mood: float = 50.0
         self.recent_rewards: list[float] = []
+        self.personality_scores: dict[str, float] = {
+            "lazy": 50.0,
+            "foodie": 50.0,
+            "playful": 50.0,
+        }
         self.steps: int = 0
         self.max_steps: int = EnvConstants.MAX_STEPS
 
@@ -109,13 +121,27 @@ class CatEnvironment(gym.Env):
         )
         self.mood = 50.0
         self.recent_rewards = []
+        self.personality_scores = {
+            "lazy": 50.0,
+            "foodie": 50.0,
+            "playful": 50.0,
+        }
         self.steps = 0
 
         return self._get_observation(), {}
 
     def _get_observation(self) -> np.ndarray:
         return np.array(
-            [self.hunger, self.energy, self.distance_to_food, self.distance_to_toy, self.mood],
+            [
+                self.hunger,
+                self.energy,
+                self.distance_to_food,
+                self.distance_to_toy,
+                self.mood,
+                self.personality_scores["lazy"],
+                self.personality_scores["foodie"],
+                self.personality_scores["playful"],
+            ],
             dtype=np.float32,
         )
 
@@ -187,6 +213,39 @@ class CatEnvironment(gym.Env):
         # Good mood makes cats more playful
         if action == CatAction.MOVE_TO_TOY and self.mood > 70.0:
             reward += 1.0
+
+        # Update personality scores based on actions (personality drift)
+        drift_rate = EnvConstants.PERSONALITY_DRIFT_RATE
+        
+        if action == CatAction.SLEEP or action == CatAction.IDLE:
+            # Lazy behavior increases lazy score
+            self.personality_scores["lazy"] = min(
+                EnvConstants.MAX_PERSONALITY_SCORE,
+                self.personality_scores["lazy"] + drift_rate
+            )
+            # Decreases playful score
+            self.personality_scores["playful"] = max(
+                EnvConstants.MIN_PERSONALITY_SCORE,
+                self.personality_scores["playful"] - drift_rate * 0.5
+            )
+        
+        if action == CatAction.MOVE_TO_FOOD:
+            # Eating behavior increases foodie score
+            self.personality_scores["foodie"] = min(
+                EnvConstants.MAX_PERSONALITY_SCORE,
+                self.personality_scores["foodie"] + drift_rate
+            )
+        
+        if action == CatAction.MOVE_TO_TOY:
+            # Playing increases playful score, decreases lazy
+            self.personality_scores["playful"] = min(
+                EnvConstants.MAX_PERSONALITY_SCORE,
+                self.personality_scores["playful"] + drift_rate
+            )
+            self.personality_scores["lazy"] = max(
+                EnvConstants.MIN_PERSONALITY_SCORE,
+                self.personality_scores["lazy"] - drift_rate * 0.7
+            )
 
         terminated = False
         truncated = False
