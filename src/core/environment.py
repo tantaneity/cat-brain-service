@@ -50,7 +50,8 @@ class EnvConstants:
     GOOD_MOOD_PLAY_BONUS: float = 1.0
 
     MAX_MOOD: float = 100.0
-    MOOD_DECAY_RATE: float = 0.2
+    MOOD_DECAY_BASE: float = 0.05
+    MOOD_DECAY_SCALE: float = 0.001
     MOOD_REWARD_SCALE: float = 3.0
     MOOD_HISTORY_WINDOW: int = 10
 
@@ -236,7 +237,10 @@ class CatEnvironment(gym.Env):
         
         avg_recent_reward = np.mean(self.recent_rewards) if self.recent_rewards else 0.0
         mood_delta = avg_recent_reward * EnvConstants.MOOD_REWARD_SCALE
-        self.mood += float(mood_delta) - EnvConstants.MOOD_DECAY_RATE
+        
+        # Adaptive decay: higher mood decays faster (more to lose), lower mood decays slower
+        mood_decay = EnvConstants.MOOD_DECAY_BASE + (self.mood * EnvConstants.MOOD_DECAY_SCALE)
+        self.mood += float(mood_delta) - mood_decay
         self.mood = np.clip(self.mood, 0.0, EnvConstants.MAX_MOOD)
         
 
