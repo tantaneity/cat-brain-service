@@ -180,18 +180,18 @@ graph LR
 flowchart LR
     subgraph Development
         CODE[Code Changes] --> CHOOSE{Training Type?}
-        CHOOSE -->|Default| TRAIN_DEFAULT[Train Default Brain<br/>python -m src.training.trainer]
-        CHOOSE -->|Individual| TRAIN_CAT[Fine-tune Cat Brain<br/>trainer.fine_tune(cat_id)]
+        CHOOSE -->|Default| TRAIN_DEFAULT["Train Default Brain<br/>python -m src.training.trainer"]
+        CHOOSE -->|Individual| TRAIN_CAT["Fine-tune Cat Brain<br/>trainer fine_tune method"]
         TRAIN_DEFAULT --> EVAL[Evaluate Model<br/>10 episodes]
         TRAIN_CAT --> EVAL
     end
     
     subgraph Storage
         EVAL --> SAVE{Save Location?}
-        SAVE -->|Default| SAVE_DEFAULT[models/&lt;timestamp&gt;/]
-        SAVE -->|Individual| SAVE_CAT[models/cats/&lt;cat_id&gt;/&lt;timestamp&gt;/]
-        SAVE_DEFAULT --> SYMLINK_DEFAULT[Update symlink<br/>models/latest/]
-        SAVE_CAT --> SYMLINK_CAT[Update symlink<br/>models/cats/&lt;cat_id&gt;/latest/]
+        SAVE -->|Default| SAVE_DEFAULT["models/timestamp/"]
+        SAVE -->|Individual| SAVE_CAT["models/cats/cat_id/timestamp/"]
+        SAVE_DEFAULT --> SYMLINK_DEFAULT["Update symlink<br/>models/latest/"]
+        SAVE_CAT --> SYMLINK_CAT["Update symlink<br/>models/cats/cat_id/latest/"]
         SAVE_DEFAULT & SAVE_CAT --> META[Save Metadata<br/>version, reward, cat_id]
     end
     
