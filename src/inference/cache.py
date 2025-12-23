@@ -8,7 +8,7 @@ from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-HASH_DECIMALS: int = 2
+HASH_DECIMALS: int = 3
 HASH_LENGTH: int = 16
 CACHE_KEY_PREFIX: str = "cat_action"
 
