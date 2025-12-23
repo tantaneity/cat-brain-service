@@ -29,12 +29,12 @@ class EnvConstants:
     TIRED_THRESHOLD: float = 30.0
     CRITICAL_TIRED_THRESHOLD: float = 15.0
 
-    REWARD_STEP: float = 0.1
+    REWARD_STEP: float = 0.5
     REWARD_EAT_HUNGRY: float = 10.0
     REWARD_SLEEP_TIRED: float = 8.0
     REWARD_SLEEP_CRITICAL: float = 15.0
     REWARD_PLAY: float = 2.0
-    REWARD_DEATH: float = -100.0
+    REWARD_DEATH: float = -50.0
     PENALTY_LOW_ENERGY: float = -0.5
     PENALTY_INEFFICIENT_ACTION: float = -1.0
 
