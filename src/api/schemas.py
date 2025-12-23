@@ -42,6 +42,12 @@ class CatState(BaseModel):
         le=EnvConstants.MAX_DISTANCE,
         description="Distance to toy",
     )
+    mood: float = Field(
+        default=50.0,
+        ge=0,
+        le=EnvConstants.MAX_MOOD,
+        description="Cat mood level (0-100, affects playfulness)",
+    )
 
     model_config = {
         "json_schema_extra": {
@@ -52,6 +58,7 @@ class CatState(BaseModel):
                 "energy": 70.0,
                 "distance_to_food": 3.5,
                 "distance_to_toy": 7.2,
+                "mood": 65.0,
             }
         }
     }

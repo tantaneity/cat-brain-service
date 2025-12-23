@@ -31,6 +31,11 @@ class EnvConstants:
     TIRED_THRESHOLD: float = 30.0
     CRITICAL_TIRED_THRESHOLD: float = 15.0
 
+    MAX_MOOD: float = 100.0
+    MOOD_DECAY_RATE: float = 0.2
+    MOOD_REWARD_SCALE: float = 3.0
+    MOOD_HISTORY_WINDOW: int = 10
+
     REWARD_STEP: float = 0.5
     REWARD_EAT_HUNGRY: float = 10.0
     REWARD_SLEEP_TIRED: float = 8.0
@@ -57,12 +62,13 @@ class CatEnvironment(gym.Env):
         self.render_mode = render_mode
 
         self.observation_space = spaces.Box(
-            low=np.array([0.0, 0.0, 0.0, 0.0]),
+            low=np.array([0.0, 0.0, 0.0, 0.0, 0.0]),
             high=np.array([
                 EnvConstants.MAX_HUNGER,
                 EnvConstants.MAX_ENERGY,
                 EnvConstants.MAX_DISTANCE,
                 EnvConstants.MAX_DISTANCE,
+                EnvConstants.MAX_MOOD,
             ]),
             dtype=np.float32,
         )
@@ -73,6 +79,8 @@ class CatEnvironment(gym.Env):
         self.energy: float = 50.0
         self.distance_to_food: float = 5.0
         self.distance_to_toy: float = 5.0
+        self.mood: float = 50.0
+        self.recent_rewards: list[float] = []
         self.steps: int = 0
         self.max_steps: int = EnvConstants.MAX_STEPS
 
@@ -99,13 +107,15 @@ class CatEnvironment(gym.Env):
             EnvConstants.MIN_DISTANCE,
             EnvConstants.MAX_DISTANCE,
         )
+        self.mood = 50.0
+        self.recent_rewards = []
         self.steps = 0
 
         return self._get_observation(), {}
 
     def _get_observation(self) -> np.ndarray:
         return np.array(
-            [self.hunger, self.energy, self.distance_to_food, self.distance_to_toy],
+            [self.hunger, self.energy, self.distance_to_food, self.distance_to_toy, self.mood],
             dtype=np.float32,
         )
 
@@ -163,6 +173,20 @@ class CatEnvironment(gym.Env):
 
         self.hunger = np.clip(self.hunger, 0.0, EnvConstants.MAX_HUNGER)
         self.energy = np.clip(self.energy, 0.0, EnvConstants.MAX_ENERGY)
+
+        # Update mood based on recent rewards
+        self.recent_rewards.append(reward)
+        if len(self.recent_rewards) > EnvConstants.MOOD_HISTORY_WINDOW:
+            self.recent_rewards.pop(0)
+        
+        avg_recent_reward = np.mean(self.recent_rewards) if self.recent_rewards else 0.0
+        mood_delta = avg_recent_reward * EnvConstants.MOOD_REWARD_SCALE
+        self.mood += mood_delta - EnvConstants.MOOD_DECAY_RATE
+        self.mood = np.clip(self.mood, 0.0, EnvConstants.MAX_MOOD)
+        
+        # Good mood makes cats more playful
+        if action == CatAction.MOVE_TO_TOY and self.mood > 70.0:
+            reward += 1.0
 
         terminated = False
         truncated = False
