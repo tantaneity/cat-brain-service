@@ -11,6 +11,9 @@ class CatAction(IntEnum):
     MOVE_TO_FOOD = 1
     MOVE_TO_TOY = 2
     SLEEP = 3
+    GROOM = 4
+    PLAY = 5
+    EXPLORE = 6
 
 
 class ObservationIndex(IntEnum):
@@ -27,7 +30,7 @@ class ObservationIndex(IntEnum):
 class EnvConstants:
     MAX_HUNGER: float = 100.0
     MAX_ENERGY: float = 100.0
-    MAX_DISTANCE: float = 10.0
+    MAX_DISTANCE: float = 100.0
     MIN_DISTANCE: float = 5.0
 
     HUNGER_PER_STEP: float = 1.0
@@ -76,7 +79,7 @@ class EnvConstants:
     INIT_ENERGY_MAX: float = 70.0
 
     MAX_STEPS: int = 1000
-    NUM_ACTIONS: int = 4
+    NUM_ACTIONS: int = 7
 
 
 class CatEnvironment(gym.Env):
@@ -187,44 +190,118 @@ class CatEnvironment(gym.Env):
     ) -> tuple[np.ndarray, SupportsFloat, bool, bool, dict[str, Any]]:
         self.steps += 1
         reward = EnvConstants.REWARD_STEP
+        
+        critical_energy = self.energy < EnvConstants.CRITICAL_TIRED_THRESHOLD
+        low_energy = self.energy < EnvConstants.TIRED_THRESHOLD
+        very_hungry = self.hunger < 20.0
+        hungry = self.hunger < 30.0
 
-
-        hunger_multiplier = 1.0 + (self.hunger / EnvConstants.MAX_HUNGER) * EnvConstants.HUNGER_DEGRADATION_FACTOR
-        self.hunger += EnvConstants.HUNGER_PER_STEP * hunger_multiplier
-
+        hunger_deficit = EnvConstants.MAX_HUNGER - self.hunger
+        hunger_multiplier = 1.0 + (hunger_deficit / EnvConstants.MAX_HUNGER) * EnvConstants.HUNGER_DEGRADATION_FACTOR
+        self.hunger -= EnvConstants.HUNGER_PER_STEP * hunger_multiplier
 
         energy_deficit = EnvConstants.MAX_ENERGY - self.energy
         energy_multiplier = 1.0 + (energy_deficit / EnvConstants.MAX_ENERGY) * EnvConstants.ENERGY_DEGRADATION_FACTOR
         self.energy -= EnvConstants.ENERGY_PER_STEP * energy_multiplier
 
         if action == CatAction.MOVE_TO_FOOD:
+            if critical_energy:
+                reward -= 20.0
+            elif low_energy:
+                reward -= 10.0
+            
             self.distance_to_food -= EnvConstants.MOVE_DISTANCE
             if self.distance_to_food <= 0:
-                if self.hunger > EnvConstants.HUNGRY_THRESHOLD:
+                if very_hungry:
+                    reward += EnvConstants.REWARD_EAT_HUNGRY * 1.5
+                elif hungry:
                     reward += EnvConstants.REWARD_EAT_HUNGRY
-                elif self.hunger < EnvConstants.INEFFICIENT_EATING_THRESHOLD:
+                elif self.hunger > 60.0:
                     reward += EnvConstants.PENALTY_INEFFICIENT_ACTION
-                self.hunger = max(0.0, self.hunger - EnvConstants.FOOD_HUNGER_REDUCTION)
+                self.hunger = min(EnvConstants.MAX_HUNGER, self.hunger + EnvConstants.FOOD_HUNGER_REDUCTION)
                 self.distance_to_food = self._respawn_distance()
 
         elif action == CatAction.MOVE_TO_TOY:
-            self.distance_to_toy -= EnvConstants.MOVE_DISTANCE
-            if self.distance_to_toy <= 0:
-                if self.hunger < EnvConstants.PLAY_HUNGER_THRESHOLD and self.energy > EnvConstants.PLAY_ENERGY_THRESHOLD:
-                    reward += EnvConstants.REWARD_PLAY
-                self.distance_to_toy = self._respawn_distance()
+            if critical_energy or low_energy or very_hungry:
+                reward -= 20.0
+            else:
+                self.distance_to_toy -= EnvConstants.MOVE_DISTANCE
+                if self.distance_to_toy <= 0:
+                    if self.hunger > 40.0 and self.energy > EnvConstants.PLAY_ENERGY_THRESHOLD:
+                        reward += EnvConstants.REWARD_PLAY * 2.0
+                    self.distance_to_toy = self._respawn_distance()
 
         elif action == CatAction.SLEEP:
-            if self.energy < EnvConstants.CRITICAL_TIRED_THRESHOLD:
-                reward += EnvConstants.REWARD_SLEEP_CRITICAL
-            elif self.energy < EnvConstants.TIRED_THRESHOLD:
-                reward += EnvConstants.REWARD_SLEEP_TIRED
+            energy_before = self.energy
+            
             self.energy = min(
                 EnvConstants.MAX_ENERGY,
                 self.energy + EnvConstants.SLEEP_ENERGY_GAIN,
             )
+            
+            actual_energy_gain = self.energy - energy_before
+            
+            if critical_energy:
+                reward += EnvConstants.REWARD_SLEEP_CRITICAL * 2.0
+                reward += actual_energy_gain * 2.0
+            elif self.energy < EnvConstants.CRITICAL_TIRED_THRESHOLD:
+                reward += EnvConstants.REWARD_SLEEP_CRITICAL
+                reward += actual_energy_gain * 1.5
+            elif self.energy < EnvConstants.TIRED_THRESHOLD:
+                reward += EnvConstants.REWARD_SLEEP_TIRED
+                reward += actual_energy_gain * 1.0
+            elif self.energy < 60.0:
+                reward += actual_energy_gain * 0.3
+            else:
+                reward -= 15.0
+            
+            if very_hungry:
+                reward -= 20.0
+        
+        elif action == CatAction.GROOM:
+            if critical_energy or very_hungry:
+                reward -= 5.0
+            else:
+                reward += 3.0
+                self.mood = min(EnvConstants.MAX_MOOD, self.mood + 10.0)
+                if self.mood > EnvConstants.GOOD_MOOD_THRESHOLD:
+                    reward += 2.0
+        
+        elif action == CatAction.PLAY:
+            if critical_energy or very_hungry:
+                reward -= 10.0
+            elif low_energy or hungry:
+                reward -= 5.0
+            else:
+                self.energy -= 5.0
+                reward += EnvConstants.REWARD_PLAY * 2.0
+                self.mood = min(EnvConstants.MAX_MOOD, self.mood + 15.0)
+                if self.mood > EnvConstants.GOOD_MOOD_THRESHOLD:
+                    reward += EnvConstants.GOOD_MOOD_PLAY_BONUS * 3.0
+        
+        elif action == CatAction.EXPLORE:
+            if critical_energy or very_hungry:
+                reward -= 8.0
+            elif low_energy:
+                reward -= 3.0
+            else:
+                self.energy -= 2.0
+                reward += 1.5
+                self.mood = min(EnvConstants.MAX_MOOD, self.mood + 5.0)
+        
+        elif action == CatAction.IDLE:
+            if critical_energy:
+                reward -= 20.0
+            elif very_hungry:
+                reward -= 15.0
+            elif low_energy or hungry:
+                reward -= 10.0
+            else:
+                reward += 1.0
 
-        if self.energy < EnvConstants.TIRED_THRESHOLD:
+        if self.energy < EnvConstants.CRITICAL_TIRED_THRESHOLD:
+            reward += EnvConstants.PENALTY_LOW_ENERGY * 3.0
+        elif self.energy < EnvConstants.TIRED_THRESHOLD:
             reward += EnvConstants.PENALTY_LOW_ENERGY
 
         self.hunger = np.clip(self.hunger, 0.0, EnvConstants.MAX_HUNGER)

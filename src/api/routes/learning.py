@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 from typing import List
+import asyncio
 
 from src.api.schemas import ObservationSchema
 from src.utils.logger import get_logger
@@ -8,6 +9,9 @@ from src.utils.logger import get_logger
 logger = get_logger(__name__)
 
 router = APIRouter(tags=["learning"])
+
+TRAINING_THRESHOLD = 100
+TRAINING_BATCH_SIZE = 64
 
 
 class ExperienceSchema(BaseModel):
@@ -69,6 +73,9 @@ async def submit_experience(request: Request, data: SubmitExperienceRequest):
     
     request.app.state.experience_buffer = experience_buffer
     
+    if len(experience_buffer[data.cat_id]) >= TRAINING_THRESHOLD:
+        asyncio.create_task(_trigger_training(request, data.cat_id))
+    
     return {"status": "ok"}
 
 
@@ -110,7 +117,30 @@ async def submit_experience_batch(request: Request, data: SubmitExperienceBatchR
     
     request.app.state.experience_buffer = experience_buffer
     
-    if len(experience_buffer[data.cat_id]) >= 100:
+    if len(experience_buffer[data.cat_id]) >= TRAINING_THRESHOLD:
         logger.info("experience_buffer_full", cat_id=data.cat_id, size=len(experience_buffer[data.cat_id]))
+        asyncio.create_task(_trigger_training(request, data.cat_id))
     
     return {"status": "ok", "total_experiences": len(experience_buffer[data.cat_id])}
+
+
+async def _trigger_training(request: Request, cat_id: str):
+    try:
+        logger.info("auto_training_started", cat_id=cat_id)
+        
+        trainer = request.app.state.trainer
+        cat_service = request.app.state.cat_service
+        
+        await asyncio.to_thread(trainer.fine_tune, cat_id, TRAINING_THRESHOLD * 10)
+        
+        experience_buffer = getattr(request.app.state, 'experience_buffer', {})
+        if cat_id in experience_buffer:
+            experience_buffer[cat_id] = []
+            request.app.state.experience_buffer = experience_buffer
+        
+        await asyncio.to_thread(cat_service.reload_cat_brain, cat_id)
+        
+        logger.info("auto_training_completed", cat_id=cat_id)
+        
+    except Exception as e:
+        logger.error("auto_training_failed", cat_id=cat_id, error=str(e))

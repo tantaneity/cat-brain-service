@@ -131,3 +131,11 @@ class ModelLoader:
         if version in self.metadata_cache:
             del self.metadata_cache[version]
         return self.load_model(version)
+    
+    def load_model_for_cat(self, cat_id: str) -> PPO:
+        model_key = self._get_model_key("latest", cat_id)
+        
+        if model_key in self.models:
+            del self.models[model_key]
+        
+        return self.load_model("latest", cat_id)

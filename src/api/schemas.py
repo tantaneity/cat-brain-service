@@ -179,3 +179,6 @@ class CatInfo(BaseModel):
     model_path: str
     created_at: Optional[str] = None
     total_actions: int = 0
+
+
+ObservationSchema = CatState

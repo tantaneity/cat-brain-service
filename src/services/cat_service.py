@@ -84,3 +84,12 @@ class CatService:
     def _get_cat_brain_path(self, cat_id: str) -> Path:
 
         return self.model_loader.model_path / "cats" / cat_id / "latest" / "cat_brain.zip"
+    
+    def reload_cat_brain(self, cat_id: str) -> None:
+        cat_brain_path = self._get_cat_brain_path(cat_id)
+        
+        if not cat_brain_path.exists():
+            raise CatNotFoundError(f"Cat '{cat_id}' not found")
+        
+        self.model_loader.load_model_for_cat(cat_id)
+        logger.info("cat_brain_reloaded", cat_id=cat_id)
