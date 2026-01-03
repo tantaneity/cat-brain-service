@@ -42,6 +42,12 @@ class CatState(BaseModel):
         le=EnvConstants.MAX_DISTANCE,
         description="Distance to toy",
     )
+    distance_to_bed: float = Field(
+        default=50.0,
+        ge=0,
+        le=EnvConstants.MAX_DISTANCE,
+        description="Distance to bed/sleep spot",
+    )
     mood: float = Field(
         default=50.0,
         ge=0,

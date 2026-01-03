@@ -36,6 +36,7 @@ class PersonalityModifier:
         modified[ObservationIndex.ENERGY] *= mods["energy"]
         modified[ObservationIndex.DISTANCE_FOOD] *= mods["distance_food"]
         modified[ObservationIndex.DISTANCE_TOY] *= mods["distance_toy"]
+        modified[ObservationIndex.DISTANCE_BED] *= mods.get("distance_bed", 1.0)
         
 
         
@@ -51,6 +52,9 @@ class PersonalityModifier:
         )
         modified[ObservationIndex.DISTANCE_TOY] = np.clip(
             modified[ObservationIndex.DISTANCE_TOY], 0, EnvConstants.MAX_DISTANCE
+        )
+        modified[ObservationIndex.DISTANCE_BED] = np.clip(
+            modified[ObservationIndex.DISTANCE_BED], 0, EnvConstants.MAX_DISTANCE
         )
         
         return modified

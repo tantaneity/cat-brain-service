@@ -12,6 +12,7 @@ def build_observation(state: CatState) -> np.ndarray:
     obs[ObservationIndex.ENERGY] = state.energy
     obs[ObservationIndex.DISTANCE_FOOD] = state.distance_to_food
     obs[ObservationIndex.DISTANCE_TOY] = state.distance_to_toy
+    obs[ObservationIndex.DISTANCE_BED] = state.distance_to_bed
     obs[ObservationIndex.MOOD] = state.mood
     obs[ObservationIndex.LAZY_SCORE] = state.lazy_score
     obs[ObservationIndex.FOODIE_SCORE] = state.foodie_score

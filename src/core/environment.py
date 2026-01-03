@@ -22,12 +22,13 @@ class ObservationIndex(IntEnum):
     ENERGY = 1
     DISTANCE_FOOD = 2
     DISTANCE_TOY = 3
-    MOOD = 4
-    LAZY_SCORE = 5
-    FOODIE_SCORE = 6
-    PLAYFUL_SCORE = 7
-    IS_BOWL_EMPTY = 8
-    IS_BOWL_TIPPED = 9
+    DISTANCE_BED = 4
+    MOOD = 5
+    LAZY_SCORE = 6
+    FOODIE_SCORE = 7
+    PLAYFUL_SCORE = 8
+    IS_BOWL_EMPTY = 9
+    IS_BOWL_TIPPED = 10
 
 
 class EnvConstants:
@@ -98,6 +99,7 @@ class CatEnvironment(gym.Env):
                 0.0,  # energy
                 0.0,  # distance_to_food
                 0.0,  # distance_to_toy
+                0.0,  # distance_to_bed
                 0.0,  # mood
                 EnvConstants.MIN_PERSONALITY_SCORE,  # lazy_score
                 EnvConstants.MIN_PERSONALITY_SCORE,  # foodie_score
@@ -110,6 +112,7 @@ class CatEnvironment(gym.Env):
                 EnvConstants.MAX_ENERGY,
                 EnvConstants.MAX_DISTANCE,
                 EnvConstants.MAX_DISTANCE,
+                EnvConstants.MAX_DISTANCE,  # distance_to_bed
                 EnvConstants.MAX_MOOD,
                 EnvConstants.MAX_PERSONALITY_SCORE,  # lazy_score
                 EnvConstants.MAX_PERSONALITY_SCORE,  # foodie_score
@@ -126,6 +129,7 @@ class CatEnvironment(gym.Env):
         self.energy: float = 50.0
         self.distance_to_food: float = 5.0
         self.distance_to_toy: float = 5.0
+        self.distance_to_bed: float = 5.0
         self.mood: float = 50.0
         self.is_bowl_empty: bool = False
         self.is_bowl_tipped: bool = False
@@ -161,6 +165,10 @@ class CatEnvironment(gym.Env):
             EnvConstants.MIN_DISTANCE,
             EnvConstants.MAX_DISTANCE,
         )
+        self.distance_to_bed = self.np_random.uniform(
+            EnvConstants.MIN_DISTANCE,
+            EnvConstants.MAX_DISTANCE,
+        )
         self.mood = 50.0
         self.is_bowl_empty = self.np_random.random() < 0.2
         self.is_bowl_tipped = self.np_random.random() < 0.1
@@ -181,6 +189,7 @@ class CatEnvironment(gym.Env):
                 self.energy,
                 self.distance_to_food,
                 self.distance_to_toy,
+                self.distance_to_bed,
                 self.mood,
                 self.personality_scores["lazy"],
                 self.personality_scores["foodie"],
@@ -249,31 +258,41 @@ class CatEnvironment(gym.Env):
                     self.distance_to_toy = self._respawn_distance()
 
         elif action == CatAction.SLEEP:
-            energy_before = self.energy
+            self.distance_to_bed -= EnvConstants.MOVE_DISTANCE
             
-            self.energy = min(
-                EnvConstants.MAX_ENERGY,
-                self.energy + EnvConstants.SLEEP_ENERGY_GAIN,
-            )
-            
-            actual_energy_gain = self.energy - energy_before
-            
-            if critical_energy:
-                reward += EnvConstants.REWARD_SLEEP_CRITICAL * 2.0
-                reward += actual_energy_gain * 2.0
-            elif self.energy < EnvConstants.CRITICAL_TIRED_THRESHOLD:
-                reward += EnvConstants.REWARD_SLEEP_CRITICAL
-                reward += actual_energy_gain * 1.5
-            elif self.energy < EnvConstants.TIRED_THRESHOLD:
-                reward += EnvConstants.REWARD_SLEEP_TIRED
-                reward += actual_energy_gain * 1.0
-            elif self.energy < 60.0:
-                reward += actual_energy_gain * 0.3
+            if self.distance_to_bed <= 0:
+                energy_before = self.energy
+                
+                self.energy = min(
+                    EnvConstants.MAX_ENERGY,
+                    self.energy + EnvConstants.SLEEP_ENERGY_GAIN,
+                )
+                
+                actual_energy_gain = self.energy - energy_before
+                
+                if critical_energy:
+                    reward += EnvConstants.REWARD_SLEEP_CRITICAL * 2.0
+                    reward += actual_energy_gain * 2.0
+                elif self.energy < EnvConstants.CRITICAL_TIRED_THRESHOLD:
+                    reward += EnvConstants.REWARD_SLEEP_CRITICAL
+                    reward += actual_energy_gain * 1.5
+                elif self.energy < EnvConstants.TIRED_THRESHOLD:
+                    reward += EnvConstants.REWARD_SLEEP_TIRED
+                    reward += actual_energy_gain * 1.0
+                elif self.energy < 60.0:
+                    reward += actual_energy_gain * 0.3
+                else:
+                    reward -= 15.0
+                
+                if very_hungry:
+                    reward -= 20.0
+                    
+                self.distance_to_bed = self._respawn_distance()
             else:
-                reward -= 15.0
-            
-            if very_hungry:
-                reward -= 20.0
+                if low_energy or critical_energy:
+                    reward += 2.0
+                else:
+                    reward -= 5.0
         
         elif action == CatAction.GROOM:
             if critical_energy or very_hungry:
