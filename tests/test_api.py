@@ -60,6 +60,7 @@ class TestPredictEndpoint:
                 "energy": 70.0,
                 "distance_to_food": 3.5,
                 "distance_to_toy": 7.2,
+                "distance_to_bed": 5.0,
             },
         )
 
@@ -76,6 +77,7 @@ class TestPredictEndpoint:
                 "energy": 70.0,
                 "distance_to_food": 3.5,
                 "distance_to_toy": 7.2,
+                "distance_to_bed": 5.0,
             },
         )
 
@@ -96,8 +98,8 @@ class TestBatchPredictEndpoint:
             "/predict_batch",
             json={
                 "states": [
-                    {"hunger": 50.0, "energy": 70.0, "distance_to_food": 3.5, "distance_to_toy": 7.2},
-                    {"hunger": 80.0, "energy": 30.0, "distance_to_food": 1.0, "distance_to_toy": 5.0},
+                    {"hunger": 50.0, "energy": 70.0, "distance_to_food": 3.5, "distance_to_toy": 7.2, "distance_to_bed": 5.0},
+                    {"hunger": 80.0, "energy": 30.0, "distance_to_food": 1.0, "distance_to_toy": 5.0, "distance_to_bed": 8.0},
                 ]
             },
         )

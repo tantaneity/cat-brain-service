@@ -20,11 +20,12 @@ class TestCatEnvironment:
         env = CatEnvironment()
         obs, info = env.reset(seed=42)
 
-        assert obs.shape == (4,)
+        assert obs.shape == (11,)
         assert 20.0 <= obs[0] <= 50.0  # hunger
         assert 40.0 <= obs[1] <= 70.0  # energy
-        assert 5.0 <= obs[2] <= 10.0  # distance_to_food
-        assert 5.0 <= obs[3] <= 10.0  # distance_to_toy
+        assert 5.0 <= obs[2] <= 100.0  # distance_to_food
+        assert 5.0 <= obs[3] <= 100.0  # distance_to_toy
+        assert 5.0 <= obs[4] <= 100.0  # distance_to_bed
         assert env.steps == 0
 
     def test_hunger_increases_each_step(self):
