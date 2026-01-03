@@ -11,6 +11,7 @@ from src.core.config import settings
 from src.inference.model_loader import ModelLoader
 from src.inference.predictor import BatchPredictor
 from src.services.cat_service import CatService
+from src.services.contextual_engine import ContextualBehaviorEngine
 from src.training.trainer import CatBrainTrainer
 from src.utils.action_history import ActionHistory
 from src.utils.logger import get_logger, setup_logger
@@ -39,6 +40,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     trainer = CatBrainTrainer(settings)
     cat_service = CatService(trainer, model_loader, action_history)
+    contextual_engine = ContextualBehaviorEngine()
 
 
     app.state.settings = settings
@@ -47,6 +49,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     app.state.trainer = trainer
     app.state.action_history = action_history
     app.state.cat_service = cat_service
+    app.state.contextual_engine = contextual_engine
     app.state.start_time = time.time()
 
     logger.info("service_started")

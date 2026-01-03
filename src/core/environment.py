@@ -14,6 +14,7 @@ class CatAction(IntEnum):
     GROOM = 4
     PLAY = 5
     EXPLORE = 6
+    MEOW_AT_BOWL = 7
 
 
 class ObservationIndex(IntEnum):
@@ -25,6 +26,8 @@ class ObservationIndex(IntEnum):
     LAZY_SCORE = 5
     FOODIE_SCORE = 6
     PLAYFUL_SCORE = 7
+    IS_BOWL_EMPTY = 8
+    IS_BOWL_TIPPED = 9
 
 
 class EnvConstants:
@@ -79,7 +82,7 @@ class EnvConstants:
     INIT_ENERGY_MAX: float = 70.0
 
     MAX_STEPS: int = 1000
-    NUM_ACTIONS: int = 7
+    NUM_ACTIONS: int = 8
 
 
 class CatEnvironment(gym.Env):
@@ -99,6 +102,8 @@ class CatEnvironment(gym.Env):
                 EnvConstants.MIN_PERSONALITY_SCORE,  # lazy_score
                 EnvConstants.MIN_PERSONALITY_SCORE,  # foodie_score
                 EnvConstants.MIN_PERSONALITY_SCORE,  # playful_score
+                0.0,  # is_bowl_empty
+                0.0,  # is_bowl_tipped
             ]),
             high=np.array([
                 EnvConstants.MAX_HUNGER,
@@ -109,6 +114,8 @@ class CatEnvironment(gym.Env):
                 EnvConstants.MAX_PERSONALITY_SCORE,  # lazy_score
                 EnvConstants.MAX_PERSONALITY_SCORE,  # foodie_score
                 EnvConstants.MAX_PERSONALITY_SCORE,  # playful_score
+                1.0,  # is_bowl_empty
+                1.0,  # is_bowl_tipped
             ]),
             dtype=np.float32,
         )
@@ -120,6 +127,8 @@ class CatEnvironment(gym.Env):
         self.distance_to_food: float = 5.0
         self.distance_to_toy: float = 5.0
         self.mood: float = 50.0
+        self.is_bowl_empty: bool = False
+        self.is_bowl_tipped: bool = False
         self.recent_rewards: list[float] = []
         self.personality_scores: dict[str, float] = {
             "lazy": 50.0,
@@ -153,6 +162,8 @@ class CatEnvironment(gym.Env):
             EnvConstants.MAX_DISTANCE,
         )
         self.mood = 50.0
+        self.is_bowl_empty = self.np_random.random() < 0.2
+        self.is_bowl_tipped = self.np_random.random() < 0.1
         self.recent_rewards = []
         self.personality_scores = {
             "lazy": 50.0,
@@ -174,6 +185,8 @@ class CatEnvironment(gym.Env):
                 self.personality_scores["lazy"],
                 self.personality_scores["foodie"],
                 self.personality_scores["playful"],
+                1.0 if self.is_bowl_empty else 0.0,
+                1.0 if self.is_bowl_tipped else 0.0,
             ],
             dtype=np.float32,
         )
@@ -212,13 +225,17 @@ class CatEnvironment(gym.Env):
             
             self.distance_to_food -= EnvConstants.MOVE_DISTANCE
             if self.distance_to_food <= 0:
-                if very_hungry:
+                if self.is_bowl_empty or self.is_bowl_tipped:
+                    reward -= 10.0
+                elif very_hungry:
                     reward += EnvConstants.REWARD_EAT_HUNGRY * 1.5
                 elif hungry:
                     reward += EnvConstants.REWARD_EAT_HUNGRY
                 elif self.hunger > 60.0:
                     reward += EnvConstants.PENALTY_INEFFICIENT_ACTION
-                self.hunger = min(EnvConstants.MAX_HUNGER, self.hunger + EnvConstants.FOOD_HUNGER_REDUCTION)
+                
+                if not self.is_bowl_empty and not self.is_bowl_tipped:
+                    self.hunger = min(EnvConstants.MAX_HUNGER, self.hunger + EnvConstants.FOOD_HUNGER_REDUCTION)
                 self.distance_to_food = self._respawn_distance()
 
         elif action == CatAction.MOVE_TO_TOY:
@@ -298,6 +315,18 @@ class CatEnvironment(gym.Env):
                 reward -= 10.0
             else:
                 reward += 1.0
+
+        elif action == CatAction.MEOW_AT_BOWL:
+            if self.is_bowl_empty and very_hungry:
+                reward += 15.0
+                self.mood = min(EnvConstants.MAX_MOOD, self.mood + 5.0)
+            elif self.is_bowl_tipped and very_hungry:
+                reward += 12.0
+                self.mood = min(EnvConstants.MAX_MOOD, self.mood + 3.0)
+            elif self.is_bowl_empty or self.is_bowl_tipped:
+                reward += 5.0
+            else:
+                reward -= 5.0
 
         if self.energy < EnvConstants.CRITICAL_TIRED_THRESHOLD:
             reward += EnvConstants.PENALTY_LOW_ENERGY * 3.0

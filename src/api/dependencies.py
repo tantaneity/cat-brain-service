@@ -5,6 +5,7 @@ from src.core.config import Settings
 from src.inference.model_loader import ModelLoader
 from src.inference.predictor import BatchPredictor
 from src.services.cat_service import CatService
+from src.services.contextual_engine import ContextualBehaviorEngine
 from src.training.trainer import CatBrainTrainer
 from src.utils.action_history import ActionHistory
 
@@ -35,3 +36,7 @@ def get_cat_service(request: Request) -> CatService:
 
 def get_start_time(request: Request) -> float:
     return request.app.state.start_time
+
+
+def get_contextual_engine(request: Request) -> ContextualBehaviorEngine:
+    return request.app.state.contextual_engine

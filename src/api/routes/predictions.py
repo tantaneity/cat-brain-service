@@ -2,7 +2,7 @@
 import numpy as np
 from fastapi import APIRouter, Depends, HTTPException
 
-from src.api.dependencies import get_predictor
+from src.api.dependencies import get_contextual_engine, get_predictor
 from src.api.observation_builder import build_observation
 from src.api.schemas import (
     BatchCatActions,
@@ -13,6 +13,7 @@ from src.api.schemas import (
 )
 from src.core.environment import CatAction as CatActionEnum
 from src.inference.predictor import BatchPredictor
+from src.services.contextual_engine import ContextualBehaviorEngine
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -24,6 +25,10 @@ ACTION_NAMES: dict[int, str] = {
     CatActionEnum.MOVE_TO_FOOD: "move_to_food",
     CatActionEnum.MOVE_TO_TOY: "move_to_toy",
     CatActionEnum.SLEEP: "sleep",
+    CatActionEnum.GROOM: "groom",
+    CatActionEnum.PLAY: "play",
+    CatActionEnum.EXPLORE: "explore",
+    CatActionEnum.MEOW_AT_BOWL: "meow_at_bowl",
 }
 
 
@@ -31,15 +36,34 @@ ACTION_NAMES: dict[int, str] = {
 async def predict(
     state: CatState,
     predictor: BatchPredictor = Depends(get_predictor),
+    contextual_engine: ContextualBehaviorEngine = Depends(get_contextual_engine),
 ):
     try:
         obs = build_observation(state)
-        action = await predictor.predict_single(
+        
+        base_action = await predictor.predict_single(
             obs,
             cat_id=state.cat_id,
             personality=state.personality.value,
         )
-        return CatAction(action=action, action_name=ACTION_NAMES.get(action))
+        
+        result = contextual_engine.process_action(
+            base_action=base_action,
+            state=state,
+            cat_id=state.cat_id,
+        )
+        
+        return CatAction(
+            action=result["action"],
+            action_name=ACTION_NAMES.get(result["action"]),
+            emotion=result["emotional_state"].primary_emotion.value,
+            emotion_intensity=result["emotional_state"].intensity.value,
+            mood_change=result["mood_delta"],
+            arousal_level=result["emotional_state"].arousal_level,
+            animation_hint=result["animation_hint"],
+            sound_hint=result["sound_hint"],
+            reaction_triggered=result["reaction_triggered"],
+        )
     except FileNotFoundError as e:
         detail = f"Model not found for cat '{state.cat_id}'" if state.cat_id else "Default model not loaded"
         raise HTTPException(status_code=503, detail=detail)

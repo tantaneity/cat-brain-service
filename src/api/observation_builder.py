@@ -16,5 +16,7 @@ def build_observation(state: CatState) -> np.ndarray:
     obs[ObservationIndex.LAZY_SCORE] = state.lazy_score
     obs[ObservationIndex.FOODIE_SCORE] = state.foodie_score
     obs[ObservationIndex.PLAYFUL_SCORE] = state.playful_score
+    obs[ObservationIndex.IS_BOWL_EMPTY] = 1.0 if state.is_bowl_empty else 0.0
+    obs[ObservationIndex.IS_BOWL_TIPPED] = 1.0 if state.is_bowl_tipped else 0.0
     
     return obs

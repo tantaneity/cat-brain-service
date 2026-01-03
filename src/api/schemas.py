@@ -66,6 +66,55 @@ class CatState(BaseModel):
         le=100.0,
         description="How playful the cat has become (personality drift)",
     )
+    is_bowl_empty: Optional[bool] = Field(
+        default=False,
+        description="Whether the food bowl is empty",
+    )
+    is_bowl_tipped: Optional[bool] = Field(
+        default=False,
+        description="Whether the food bowl is tipped over",
+    )
+    
+    player_nearby: bool = Field(
+        default=False,
+        description="Whether player is near the cat",
+    )
+    player_distance: float = Field(
+        default=100.0,
+        ge=0,
+        le=100.0,
+        description="Distance to player",
+    )
+    is_being_petted: bool = Field(
+        default=False,
+        description="Whether player is currently petting the cat",
+    )
+    is_player_calling: bool = Field(
+        default=False,
+        description="Whether player is calling the cat",
+    )
+    loud_noise_level: float = Field(
+        default=0.0,
+        ge=0,
+        le=1.0,
+        description="Environmental noise level (0=quiet, 1=very loud)",
+    )
+    new_toy_appeared: bool = Field(
+        default=False,
+        description="Whether a new toy just appeared",
+    )
+    food_bowl_refilled: bool = Field(
+        default=False,
+        description="Whether food bowl was just refilled",
+    )
+    sudden_movement: bool = Field(
+        default=False,
+        description="Whether there was sudden movement nearby",
+    )
+    time_of_day: str = Field(
+        default="afternoon",
+        description="Time of day: morning, afternoon, evening, night",
+    )
 
     model_config = {
         "json_schema_extra": {
@@ -80,6 +129,17 @@ class CatState(BaseModel):
                 "lazy_score": 60.0,
                 "foodie_score": 45.0,
                 "playful_score": 30.0,
+                "is_bowl_empty": False,
+                "is_bowl_tipped": False,
+                "player_nearby": True,
+                "player_distance": 15.5,
+                "is_being_petted": False,
+                "is_player_calling": False,
+                "loud_noise_level": 0.0,
+                "new_toy_appeared": False,
+                "food_bowl_refilled": False,
+                "sudden_movement": False,
+                "time_of_day": "afternoon",
             }
         }
     }
@@ -95,12 +155,53 @@ class CatAction(BaseModel):
         default=None,
         description="Human readable action name",
     )
+    
+    emotion: Optional[str] = Field(
+        default=None,
+        description="Current emotional state",
+    )
+    emotion_intensity: Optional[str] = Field(
+        default=None,
+        description="Intensity of emotion: subtle, moderate, strong, intense",
+    )
+    mood_change: float = Field(
+        default=0.0,
+        description="Change in mood from this action",
+    )
+    arousal_level: Optional[float] = Field(
+        default=None,
+        description="Cat arousal level (0-1, affects energy/alertness)",
+    )
+    animation_hint: Optional[str] = Field(
+        default=None,
+        description="Suggested animation for Unity",
+    )
+    sound_hint: Optional[str] = Field(
+        default=None,
+        description="Suggested sound effect",
+    )
+    reaction_triggered: bool = Field(
+        default=False,
+        description="Whether a reaction to stimulus was triggered",
+    )
+    behavior_pattern: Optional[str] = Field(
+        default=None,
+        description="Active behavior pattern",
+    )
 
     model_config = {
         "json_schema_extra": {
             "example": {
-                "action": 1,
-                "action_name": "move_to_food",
+                "action": 4,
+                "action_name": "groom",
+                "emotion": "content",
+                "emotion_intensity": "moderate",
+                "mood_change": 5.0,
+                "arousal_level": 0.3,
+                "animation_hint": "purr",
+                "sound_hint": "purr_soft",
+                "reaction_triggered": True,
+                "behavior_pattern": "lazy_sunday",
             }
         }
     }
