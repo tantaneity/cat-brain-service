@@ -232,20 +232,20 @@ class CatEnvironment(gym.Env):
             elif low_energy:
                 reward -= 10.0
             
-            self.distance_to_food -= EnvConstants.MOVE_DISTANCE
-            if self.distance_to_food <= 0:
-                if self.is_bowl_empty or self.is_bowl_tipped:
-                    reward -= 10.0
-                elif very_hungry:
-                    reward += EnvConstants.REWARD_EAT_HUNGRY * 1.5
-                elif hungry:
-                    reward += EnvConstants.REWARD_EAT_HUNGRY
-                elif self.hunger > 60.0:
-                    reward += EnvConstants.PENALTY_INEFFICIENT_ACTION
-                
-                if not self.is_bowl_empty and not self.is_bowl_tipped:
+            if self.is_bowl_empty or self.is_bowl_tipped:
+                reward -= 15.0
+            else:
+                self.distance_to_food -= EnvConstants.MOVE_DISTANCE
+                if self.distance_to_food <= 0:
+                    if very_hungry:
+                        reward += EnvConstants.REWARD_EAT_HUNGRY * 1.5
+                    elif hungry:
+                        reward += EnvConstants.REWARD_EAT_HUNGRY
+                    elif self.hunger > 60.0:
+                        reward += EnvConstants.PENALTY_INEFFICIENT_ACTION
+                    
                     self.hunger = min(EnvConstants.MAX_HUNGER, self.hunger + EnvConstants.FOOD_HUNGER_REDUCTION)
-                self.distance_to_food = self._respawn_distance()
+                    self.distance_to_food = self._respawn_distance()
 
         elif action == CatAction.MOVE_TO_TOY:
             if critical_energy or low_energy or very_hungry:
@@ -336,16 +336,17 @@ class CatEnvironment(gym.Env):
                 reward += 1.0
 
         elif action == CatAction.MEOW_AT_BOWL:
-            if self.is_bowl_empty and very_hungry:
-                reward += 15.0
-                self.mood = min(EnvConstants.MAX_MOOD, self.mood + 5.0)
-            elif self.is_bowl_tipped and very_hungry:
+            if (self.is_bowl_empty or self.is_bowl_tipped) and very_hungry:
+                reward += 20.0
+                self.mood = min(EnvConstants.MAX_MOOD, self.mood + 8.0)
+            elif (self.is_bowl_empty or self.is_bowl_tipped) and hungry:
                 reward += 12.0
-                self.mood = min(EnvConstants.MAX_MOOD, self.mood + 3.0)
+                self.mood = min(EnvConstants.MAX_MOOD, self.mood + 5.0)
             elif self.is_bowl_empty or self.is_bowl_tipped:
-                reward += 5.0
+                reward += 8.0
+                self.mood = min(EnvConstants.MAX_MOOD, self.mood + 3.0)
             else:
-                reward -= 5.0
+                reward -= 8.0
 
         if self.energy < EnvConstants.CRITICAL_TIRED_THRESHOLD:
             reward += EnvConstants.PENALTY_LOW_ENERGY * 3.0
