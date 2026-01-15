@@ -39,3 +39,4 @@ htmlcov/
 
 *.log
 test_*
+models/*
