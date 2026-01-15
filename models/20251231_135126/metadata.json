@@ -1,7 +1,0 @@
-{
-  "version": "20251231_135126",
-  "trained_at": "2025-12-31T13:51:26.976079",
-  "total_timesteps": 100000,
-  "mean_reward": 308.34495014421947,
-  "algorithm": "PPO"
-}
