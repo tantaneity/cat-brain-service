@@ -1,5 +1,5 @@
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Path
 
 from src.api.dependencies import get_cat_service
 from src.api.schemas import CatInfo, CreateCatRequest, CreateCatResponse, ErrorResponse
@@ -31,7 +31,7 @@ async def create_cat(
 
 @router.get("/{cat_id}", response_model=CatInfo, responses={404: {"model": ErrorResponse}})
 async def get_cat_info(
-    cat_id: str,
+    cat_id: str = Path(..., description="UUID of the cat"),
     cat_service: CatService = Depends(get_cat_service),
 ):
 
