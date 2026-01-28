@@ -1,5 +1,6 @@
 gymnasium
 stable-baselines3
+stable-baselines3[extra]
 torch
 tensorboard
 fastapi
