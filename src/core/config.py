@@ -45,6 +45,9 @@ class Settings(BaseSettings):
 
     LOG_LEVEL: str = "INFO"
     ENABLE_METRICS: bool = True
+    ACTION_HISTORY_MAX_ENTRIES_PER_CAT: int = 500
+    ACTION_HISTORY_MAX_AGE_DAYS: int = 30
+    ACTION_HISTORY_CLEANUP_INTERVAL_ACTIONS: int = 100
 
     class Config:
         env_file = ".env"

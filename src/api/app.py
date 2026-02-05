@@ -34,7 +34,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     except FileNotFoundError:
         logger.warning("model_not_found", version=settings.MODEL_VERSION)
 
-    action_history = ActionHistory()
+    action_history = ActionHistory(
+        max_entries_per_cat=settings.ACTION_HISTORY_MAX_ENTRIES_PER_CAT,
+        max_entry_age_days=settings.ACTION_HISTORY_MAX_AGE_DAYS,
+        cleanup_interval_actions=settings.ACTION_HISTORY_CLEANUP_INTERVAL_ACTIONS,
+    )
     predictor = BatchPredictor(model_loader, settings, action_history)
     predictor.start()
 

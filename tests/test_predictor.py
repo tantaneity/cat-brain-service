@@ -1,5 +1,7 @@
 import asyncio
-from unittest.mock import MagicMock, patch
+import json
+from datetime import datetime, timedelta
+from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
@@ -7,6 +9,7 @@ import pytest
 from src.core.config import Settings
 from src.inference.model_loader import ModelLoader
 from src.inference.predictor import BatchPredictor
+from src.utils.action_history import ActionHistory
 
 
 @pytest.fixture
@@ -104,3 +107,60 @@ class TestBatchPredictor:
 
         predictor.stop()
         assert predictor._running is False
+
+
+class TestActionHistory:
+    def test_log_action_keeps_only_recent_entries_with_limit(self, tmp_path):
+        history = ActionHistory(
+            history_path=str(tmp_path),
+            max_entries_per_cat=3,
+            max_entry_age_days=30,
+            cleanup_interval_actions=100,
+        )
+
+        for action in range(5):
+            history.log_action(
+                cat_id="cat-1",
+                observation=np.array([1.0, 2.0, 3.0], dtype=np.float32),
+                action=action,
+            )
+
+        entries = history.get_history("cat-1")
+
+        assert len(entries) == 3
+        assert [entry["action"] for entry in entries] == [2, 3, 4]
+
+    def test_log_action_prunes_expired_entries(self, tmp_path):
+        history_file = tmp_path / "cat-1.jsonl"
+        old_entry = {
+            "timestamp": (datetime.now() - timedelta(days=3)).isoformat(),
+            "observation": [0.0, 0.0, 0.0],
+            "action": 1,
+            "reward": None,
+        }
+        fresh_entry = {
+            "timestamp": (datetime.now() - timedelta(hours=1)).isoformat(),
+            "observation": [0.0, 0.0, 0.0],
+            "action": 2,
+            "reward": None,
+        }
+        with open(history_file, "w", encoding="utf-8") as f:
+            f.write(json.dumps(old_entry) + "\n")
+            f.write(json.dumps(fresh_entry) + "\n")
+
+        history = ActionHistory(
+            history_path=str(tmp_path),
+            max_entries_per_cat=10,
+            max_entry_age_days=1,
+            cleanup_interval_actions=100,
+        )
+        history.log_action(
+            cat_id="cat-1",
+            observation=np.array([1.0, 1.0, 1.0], dtype=np.float32),
+            action=3,
+        )
+
+        entries = history.get_history("cat-1")
+
+        assert len(entries) == 2
+        assert [entry["action"] for entry in entries] == [2, 3]
