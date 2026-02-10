@@ -63,6 +63,9 @@ async def predict(
             animation_hint=result["animation_hint"],
             sound_hint=result["sound_hint"],
             reaction_triggered=result["reaction_triggered"],
+            emotion_axes=result.get("emotion_axes"),
+            visual_layers=result.get("visual_layers"),
+            visual_primary=result.get("visual_primary"),
         )
     except FileNotFoundError as e:
         detail = f"Model not found for cat '{state.cat_id}'" if state.cat_id else "Default model not loaded"

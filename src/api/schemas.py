@@ -195,6 +195,19 @@ class CatAction(BaseModel):
         description="Active behavior pattern",
     )
 
+    emotion_axes: Optional["EmotionAxes"] = Field(
+        default=None,
+        description="Independent emotion axes (base/mood/reaction)",
+    )
+    visual_layers: Optional[List["VisualLayer"]] = Field(
+        default=None,
+        description="Composited visual layers for eyes",
+    )
+    visual_primary: Optional[str] = Field(
+        default=None,
+        description="Primary visual layer emotion",
+    )
+
     model_config = {
         "json_schema_extra": {
             "example": {
@@ -208,9 +221,41 @@ class CatAction(BaseModel):
                 "sound_hint": "purr_soft",
                 "reaction_triggered": True,
                 "behavior_pattern": "lazy_sunday",
+                "visual_primary": "happy",
             }
         }
     }
+
+
+class EmotionAxis(BaseModel):
+    emotion: str = Field(description="Emotion label")
+    intensity: str = Field(description="Intensity label")
+    arousal: float = Field(description="Arousal level (0-1)")
+    valence: float = Field(description="Valence level (-1 to 1)")
+    updated_at: float = Field(description="Unix timestamp when updated")
+    expires_at: Optional[float] = Field(
+        default=None,
+        description="Unix timestamp when axis expires (reaction only)",
+    )
+    source: str = Field(description="Axis source: base, mood, reaction")
+
+
+class EmotionAxes(BaseModel):
+    base: EmotionAxis
+    mood: EmotionAxis
+    reaction: Optional[EmotionAxis] = None
+
+
+class VisualLayer(BaseModel):
+    source: str = Field(description="Layer source: base, mood, reaction")
+    emotion: str = Field(description="Emotion label")
+    intensity: str = Field(description="Intensity label")
+    priority: int = Field(description="Composition priority (higher wins)")
+    weight: float = Field(description="Blend weight (0-1)")
+    expires_at: Optional[float] = Field(
+        default=None,
+        description="Unix timestamp when layer expires",
+    )
 
 
 class BatchCatStates(BaseModel):
@@ -289,3 +334,5 @@ class CatInfo(BaseModel):
 
 
 ObservationSchema = CatState
+
+CatAction.model_rebuild()
