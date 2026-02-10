@@ -5,7 +5,7 @@ import random
 
 import numpy as np
 
-from src.core.emotions import EmotionType, EmotionalState
+from src.core.emotions import EmotionType, EmotionalState, BehaviorIntensity
 
 
 class StimulusType(Enum):
@@ -37,6 +37,9 @@ class ReactionModifier:
     animation_hint: Optional[str] = None
     sound_hint: Optional[str] = None
     probability: float = 1.0
+    reaction_emotion: Optional[EmotionType] = None
+    reaction_intensity: Optional[BehaviorIntensity] = None
+    reaction_duration: float = 0.0
 
 
 class ReactionSystem:
