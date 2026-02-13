@@ -22,18 +22,13 @@ class ModelLoader:
         self.default_version = config.MODEL_VERSION
 
     def load_model(self, version: str = "latest", cat_id: Optional[str] = None) -> PPO:
-        model_key = self._get_model_key(version, cat_id)
+        model_key = self._get_model_key(version)
         
         if model_key in self.models:
             return self.models[model_key]
 
-        cat_model_path = self._get_cat_model_path(version, cat_id)
-        
-        if cat_model_path and cat_model_path.exists():
-            model_file = cat_model_path
-        else:
-            version_path = self.model_path / version
-            model_file = version_path / "cat_brain.zip"
+        version_path = self.model_path / version
+        model_file = version_path / "cat_brain.zip"
 
         if not model_file.exists():
             logger.error(
@@ -69,20 +64,11 @@ class ModelLoader:
             )
             raise
 
-    def _get_model_key(self, version: str, cat_id: Optional[str]) -> str:
-        if cat_id:
-            return f"{cat_id}:{version}"
+    def _get_model_key(self, version: str) -> str:
         return f"{DEFAULT_BRAIN_KEY}:{version}"
 
-    def _get_cat_model_path(self, version: str, cat_id: Optional[str]) -> Optional[Path]:
-        if not cat_id:
-            return None
-        cat_dir = self.model_path / "cats" / cat_id / version
-        model_file = cat_dir / "cat_brain.zip"
-        return model_file if model_file.exists() else None
-
     def get_model(self, version: str = "latest", cat_id: Optional[str] = None) -> Optional[PPO]:
-        model_key = self._get_model_key(version, cat_id)
+        model_key = self._get_model_key(version)
         if model_key in self.models:
             return self.models[model_key]
         return None
@@ -133,9 +119,4 @@ class ModelLoader:
         return self.load_model(version)
     
     def load_model_for_cat(self, cat_id: str) -> PPO:
-        model_key = self._get_model_key("latest", cat_id)
-        
-        if model_key in self.models:
-            del self.models[model_key]
-        
-        return self.load_model("latest", cat_id)
+        return self.load_model("latest")

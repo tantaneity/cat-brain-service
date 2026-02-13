@@ -10,6 +10,7 @@ from src.inference.cache import PredictionCache
 from src.inference.model_loader import ModelLoader
 from src.utils.action_history import ActionHistory
 from src.utils.logger import get_logger
+from src.services.cat_profile_store import CatProfileStore, CatProfile
 
 logger = get_logger(__name__)
 
@@ -60,6 +61,34 @@ class PersonalityModifier:
         return modified
 
 
+class ProfileModifier:
+    @staticmethod
+    def apply(observation: np.ndarray, profile: Optional[CatProfile]) -> np.ndarray:
+        if profile is None or not profile.modifiers:
+            return observation
+
+        modified = observation.copy()
+        mods = profile.modifiers
+
+        def scale(index: int, max_value: float, key: str) -> None:
+            if key not in mods:
+                return
+            modified[index] *= mods[key]
+            modified[index] = np.clip(modified[index], 0, max_value)
+
+        scale(ObservationIndex.HUNGER, EnvConstants.MAX_HUNGER, "hunger")
+        scale(ObservationIndex.ENERGY, EnvConstants.MAX_ENERGY, "energy")
+        scale(ObservationIndex.DISTANCE_FOOD, EnvConstants.MAX_DISTANCE, "distance_food")
+        scale(ObservationIndex.DISTANCE_TOY, EnvConstants.MAX_DISTANCE, "distance_toy")
+        scale(ObservationIndex.DISTANCE_BED, EnvConstants.MAX_DISTANCE, "distance_bed")
+        scale(ObservationIndex.MOOD, EnvConstants.MAX_MOOD, "mood")
+        scale(ObservationIndex.LAZY_SCORE, EnvConstants.MAX_PERSONALITY_SCORE, "lazy_score")
+        scale(ObservationIndex.FOODIE_SCORE, EnvConstants.MAX_PERSONALITY_SCORE, "foodie_score")
+        scale(ObservationIndex.PLAYFUL_SCORE, EnvConstants.MAX_PERSONALITY_SCORE, "playful_score")
+
+        return modified
+
+
 @dataclass
 class PredictionRequest:
     observation: np.ndarray
@@ -72,10 +101,12 @@ class BatchPredictor:
         model_loader: ModelLoader,
         config: Settings,
         action_history: Optional[ActionHistory] = None,
+        profile_store: Optional[CatProfileStore] = None,
     ):
         self.model_loader = model_loader
         self.config = config
         self.action_history = action_history
+        self.profile_store = profile_store
         self.batch_size = config.BATCH_SIZE
         self.batch_timeout = config.BATCH_TIMEOUT
 
@@ -103,7 +134,12 @@ class BatchPredictor:
         personality: str = "balanced",
         use_cache: bool = True,
     ) -> int:
+        profile = None
+        if cat_id and self.profile_store is not None:
+            profile = self.profile_store.ensure_profile(cat_id, personality)
+
         modified_obs = PersonalityModifier.apply(observation, personality)
+        modified_obs = ProfileModifier.apply(modified_obs, profile)
         
         if use_cache:
             cached = await self.cache.get(modified_obs)
@@ -126,8 +162,11 @@ class BatchPredictor:
 
         return action_int
 
-    async def predict_batch(self, observations: list[np.ndarray]) -> list[int]:
-        tasks = [self.predict_single(obs) for obs in observations]
+    async def predict_batch(self, states: list[tuple[np.ndarray, Optional[str], str]]) -> list[int]:
+        tasks = [
+            self.predict_single(obs, cat_id=cat_id, personality=personality)
+            for obs, cat_id, personality in states
+        ]
         return await asyncio.gather(*tasks)
 
     async def _batch_processor(self) -> None:
