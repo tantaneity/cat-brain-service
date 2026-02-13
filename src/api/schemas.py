@@ -318,9 +318,9 @@ class CreateCatResponse(BaseModel):
             "example": {
                 "cat_id": "whiskers_123",
                 "personality": "playful",
-                "brain_path": "models/cats/whiskers_123/latest/cat_brain.zip",
+                "brain_path": "models/cats/whiskers_123/profile.json",
                 "created_at": "2025-12-23T10:30:00",
-                "message": "Cat brain created successfully from default model",
+                "message": "Cat profile created successfully from base model",
             }
         }
     }
@@ -331,6 +331,36 @@ class CatInfo(BaseModel):
     model_path: str
     created_at: Optional[str] = None
     total_actions: int = 0
+
+
+class CatProfileResponse(BaseModel):
+    cat_id: str
+    personality: str
+    created_at: str
+    seed: int
+    modifiers: dict[str, float]
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "cat_id": "whiskers_123",
+                "personality": "playful",
+                "created_at": "2025-12-23T10:30:00",
+                "seed": 123456789,
+                "modifiers": {
+                    "hunger": 1.02,
+                    "energy": 0.97,
+                    "distance_food": 1.05,
+                    "distance_toy": 0.94,
+                    "distance_bed": 1.01,
+                    "mood": 1.03,
+                    "lazy_score": 0.98,
+                    "foodie_score": 1.07,
+                    "playful_score": 0.95,
+                },
+            }
+        }
+    }
 
 
 ObservationSchema = CatState

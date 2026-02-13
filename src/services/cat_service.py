@@ -1,10 +1,7 @@
-import json
-from datetime import datetime
-from pathlib import Path
-from typing import Optional
 
 from src.inference.model_loader import ModelLoader
 from src.training.trainer import CatBrainTrainer
+from src.services.cat_profile_store import CatProfileStore
 from src.utils.action_history import ActionHistory
 from src.utils.logger import get_logger
 
@@ -29,67 +26,67 @@ class CatService:
         trainer: CatBrainTrainer,
         model_loader: ModelLoader,
         action_history: ActionHistory,
+        profile_store: CatProfileStore,
     ):
         self.trainer = trainer
         self.model_loader = model_loader
         self.action_history = action_history
+        self.profile_store = profile_store
     
     def create_cat(self, cat_id: str, personality: str) -> dict:
 
-        cat_brain_path = self._get_cat_brain_path(cat_id)
-        
-        if cat_brain_path.exists():
+        if self.profile_store.profile_exists(cat_id):
             raise CatAlreadyExistsError(
                 f"Cat '{cat_id}' already exists. Use a different cat_id or delete the existing cat first."
             )
-        
-        brain_path = self.trainer.create_cat_brain(cat_id)
-        
+
+        profile = self.profile_store.create_profile(cat_id, personality)
+        profile_path = self.profile_store.get_profile_path(cat_id)
+
         return {
             "cat_id": cat_id,
             "personality": personality,
-            "brain_path": str(brain_path),
-            "created_at": datetime.now().isoformat(),
-            "message": "Cat brain created successfully from default model",
+            "brain_path": str(profile_path),
+            "created_at": profile.created_at,
+            "message": "Cat profile created successfully from base model",
         }
     
     def get_cat_info(self, cat_id: str) -> dict:
 
-        cat_brain_path = self._get_cat_brain_path(cat_id)
-        
-        if not cat_brain_path.exists():
+        profile = self.profile_store.get_profile(cat_id)
+        if not profile:
             raise CatNotFoundError(f"Cat '{cat_id}' not found")
-        
-        metadata_path = cat_brain_path.parent / "metadata.json"
-        created_at = None
-        
-        if metadata_path.exists():
-            with open(metadata_path) as f:
-                metadata = json.load(f)
-                created_at = metadata.get("created_at")
         
         stats = self.action_history.get_history_stats(cat_id)
         
         return {
             "cat_id": cat_id,
-            "model_path": str(cat_brain_path),
-            "created_at": created_at,
+            "model_path": str(self.profile_store.get_profile_path(cat_id)),
+            "created_at": profile.created_at,
             "total_actions": stats["total_actions"],
+        }
+
+    def get_profile_summary(self, cat_id: str) -> dict:
+
+        profile = self.profile_store.get_profile(cat_id)
+        if not profile:
+            raise CatNotFoundError(f"Cat '{cat_id}' not found")
+        
+        return {
+            "cat_id": profile.cat_id,
+            "personality": profile.personality,
+            "created_at": profile.created_at,
+            "seed": profile.seed,
+            "modifiers": profile.modifiers,
         }
     
     def cat_exists(self, cat_id: str) -> bool:
 
-        return self._get_cat_brain_path(cat_id).exists()
-    
-    def _get_cat_brain_path(self, cat_id: str) -> Path:
-
-        return self.model_loader.model_path / "cats" / cat_id / "latest" / "cat_brain.zip"
+        return self.profile_store.profile_exists(cat_id)
     
     def reload_cat_brain(self, cat_id: str) -> None:
-        cat_brain_path = self._get_cat_brain_path(cat_id)
-        
-        if not cat_brain_path.exists():
+        if not self.profile_store.profile_exists(cat_id):
             raise CatNotFoundError(f"Cat '{cat_id}' not found")
         
-        self.model_loader.load_model_for_cat(cat_id)
+        self.model_loader.reload_model(self.model_loader.default_version)
         logger.info("cat_brain_reloaded", cat_id=cat_id)

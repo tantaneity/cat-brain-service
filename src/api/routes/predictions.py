@@ -67,9 +67,8 @@ async def predict(
             visual_layers=result.get("visual_layers"),
             visual_primary=result.get("visual_primary"),
         )
-    except FileNotFoundError as e:
-        detail = f"Model not found for cat '{state.cat_id}'" if state.cat_id else "Default model not loaded"
-        raise HTTPException(status_code=503, detail=detail)
+    except FileNotFoundError:
+        raise HTTPException(status_code=503, detail="Base model not loaded")
     except Exception as e:
         logger.error("prediction_error", error=str(e), cat_id=state.cat_id)
         raise HTTPException(status_code=500, detail=str(e))
@@ -81,8 +80,11 @@ async def predict_batch(
     predictor: BatchPredictor = Depends(get_predictor),
 ):
     try:
-        observations = [build_observation(s) for s in batch.states]
-        actions = await predictor.predict_batch(observations)
+        payload = [
+            (build_observation(state), state.cat_id, state.personality.value)
+            for state in batch.states
+        ]
+        actions = await predictor.predict_batch(payload)
         return BatchCatActions(actions=actions)
     except FileNotFoundError:
         raise HTTPException(status_code=503, detail="Model not loaded")

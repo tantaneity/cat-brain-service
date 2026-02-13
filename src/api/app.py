@@ -11,6 +11,7 @@ from src.core.config import settings
 from src.inference.model_loader import ModelLoader
 from src.inference.predictor import BatchPredictor
 from src.services.cat_service import CatService
+from src.services.cat_profile_store import CatProfileStore
 from src.services.contextual_engine import ContextualBehaviorEngine
 from src.training.trainer import CatBrainTrainer
 from src.utils.action_history import ActionHistory
@@ -39,11 +40,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         max_entry_age_days=settings.ACTION_HISTORY_MAX_AGE_DAYS,
         cleanup_interval_actions=settings.ACTION_HISTORY_CLEANUP_INTERVAL_ACTIONS,
     )
-    predictor = BatchPredictor(model_loader, settings, action_history)
+    profile_store = CatProfileStore(model_loader.model_path / "cats")
+    predictor = BatchPredictor(model_loader, settings, action_history, profile_store)
     predictor.start()
 
     trainer = CatBrainTrainer(settings)
-    cat_service = CatService(trainer, model_loader, action_history)
+    cat_service = CatService(trainer, model_loader, action_history, profile_store)
     contextual_engine = ContextualBehaviorEngine()
 
 
@@ -54,6 +56,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     app.state.action_history = action_history
     app.state.cat_service = cat_service
     app.state.contextual_engine = contextual_engine
+    app.state.profile_store = profile_store
     app.state.start_time = time.time()
 
     logger.info("service_started")
