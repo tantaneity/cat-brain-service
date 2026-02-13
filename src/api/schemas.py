@@ -318,9 +318,9 @@ class CreateCatResponse(BaseModel):
             "example": {
                 "cat_id": "whiskers_123",
                 "personality": "playful",
-                "brain_path": "models/cats/whiskers_123/latest/cat_brain.zip",
+                "brain_path": "models/cats/whiskers_123/profile.json",
                 "created_at": "2025-12-23T10:30:00",
-                "message": "Cat brain created successfully from default model",
+                "message": "Cat profile created successfully from base model",
             }
         }
     }

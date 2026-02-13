@@ -126,20 +126,11 @@ async def submit_experience_batch(request: Request, data: SubmitExperienceBatchR
 
 async def _trigger_training(request: Request, cat_id: str):
     try:
-        logger.info("auto_training_started", cat_id=cat_id)
-        
-        trainer = request.app.state.trainer
-        cat_service = request.app.state.cat_service
-        
-        await asyncio.to_thread(trainer.fine_tune, cat_id, TRAINING_THRESHOLD * 10)
-        
+        logger.info("auto_training_skipped", cat_id=cat_id)
         experience_buffer = getattr(request.app.state, 'experience_buffer', {})
         if cat_id in experience_buffer:
             experience_buffer[cat_id] = []
             request.app.state.experience_buffer = experience_buffer
-        
-        await asyncio.to_thread(cat_service.reload_cat_brain, cat_id)
-        
         logger.info("auto_training_completed", cat_id=cat_id)
         
     except Exception as e:
