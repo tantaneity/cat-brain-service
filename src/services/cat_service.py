@@ -65,6 +65,20 @@ class CatService:
             "created_at": profile.created_at,
             "total_actions": stats["total_actions"],
         }
+
+    def get_profile_summary(self, cat_id: str) -> dict:
+
+        profile = self.profile_store.get_profile(cat_id)
+        if not profile:
+            raise CatNotFoundError(f"Cat '{cat_id}' not found")
+        
+        return {
+            "cat_id": profile.cat_id,
+            "personality": profile.personality,
+            "created_at": profile.created_at,
+            "seed": profile.seed,
+            "modifiers": profile.modifiers,
+        }
     
     def cat_exists(self, cat_id: str) -> bool:
 

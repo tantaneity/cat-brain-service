@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Path
 
 from src.api.dependencies import get_cat_service
-from src.api.schemas import CatInfo, CreateCatRequest, CreateCatResponse, ErrorResponse
+from src.api.schemas import CatInfo, CatProfileResponse, CreateCatRequest, CreateCatResponse, ErrorResponse
 from src.services.cat_service import CatAlreadyExistsError, CatNotFoundError, CatService
 from src.utils.logger import get_logger
 
@@ -38,5 +38,18 @@ async def get_cat_info(
     try:
         info = cat_service.get_cat_info(cat_id)
         return CatInfo(**info)
+    except CatNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.get("/{cat_id}/profile", response_model=CatProfileResponse, responses={404: {"model": ErrorResponse}})
+async def get_cat_profile(
+    cat_id: str = Path(..., description="UUID of the cat"),
+    cat_service: CatService = Depends(get_cat_service),
+):
+
+    try:
+        info = cat_service.get_profile_summary(cat_id)
+        return CatProfileResponse(**info)
     except CatNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
