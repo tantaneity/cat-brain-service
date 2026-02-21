@@ -203,6 +203,19 @@ class ReactionSystem:
             animation_hint="look_at_food",
             probability=0.6,
         ),
+        StimulusType.SUDDEN_MOVEMENT: ReactionModifier(
+            action_probabilities={0: 0.7, 6: 0.2},
+            mood_delta=-8.0,
+            arousal_boost=0.25,
+            animation_hint="flinch",
+            probability=0.65,
+        ),
+        StimulusType.PLAYER_APPROACH: ReactionModifier(
+            action_probabilities={0: 0.6, 6: 0.3},
+            mood_delta=2.0,
+            animation_hint="look_at_player",
+            probability=0.5,
+        ),
     }
     
     @staticmethod
