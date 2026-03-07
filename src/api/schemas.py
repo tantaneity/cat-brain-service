@@ -117,6 +117,36 @@ class CatState(BaseModel):
         default=False,
         description="Whether there was sudden movement nearby",
     )
+    laser_distance: float = Field(
+        default=100.0,
+        ge=0,
+        le=EnvConstants.MAX_DISTANCE,
+        description="Distance to laser point",
+    )
+    laser_velocity: float = Field(
+        default=0.0,
+        ge=0,
+        le=EnvConstants.MAX_DISTANCE,
+        description="Laser point movement speed",
+    )
+    laser_visible: bool = Field(
+        default=False,
+        description="Whether laser point is visible to the cat",
+    )
+    laser_active: bool = Field(
+        default=False,
+        description="Whether laser pointer toy is active",
+    )
+    laser_play_skill: float = Field(
+        default=0.0,
+        ge=0,
+        le=1.0,
+        description="Learned laser play skill",
+    )
+    laser_caught: bool = Field(
+        default=False,
+        description="Whether cat has just caught laser point",
+    )
     time_of_day: str = Field(
         default="afternoon",
         description="Time of day: morning, afternoon, evening, night",
@@ -145,6 +175,12 @@ class CatState(BaseModel):
                 "new_toy_appeared": False,
                 "food_bowl_refilled": False,
                 "sudden_movement": False,
+                "laser_distance": 12.0,
+                "laser_velocity": 4.0,
+                "laser_visible": True,
+                "laser_active": True,
+                "laser_play_skill": 0.15,
+                "laser_caught": False,
                 "time_of_day": "afternoon",
             }
         }

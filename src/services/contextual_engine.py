@@ -1,8 +1,10 @@
 import time
+import random
 from dataclasses import dataclass
 from typing import Optional
 
 from src.core.behavior import BehaviorLibrary, CatMemory, StochasticBehavior
+from src.core.environment import CatAction
 from src.core.emotions import EmotionEngine, EmotionalState, EmotionType, BehaviorIntensity
 from src.core.reactions import ReactionSystem, Stimulus, StimulusType, ReactionModifier
 from src.api.schemas import CatState, EmotionAxis, EmotionAxes, VisualLayer
@@ -34,6 +36,7 @@ class ContextualBehaviorEngine:
         self.axis_states: dict[str, dict[str, AxisPersistenceState]] = {}
         self.reaction_states: dict[str, ReactionAxisState] = {}
         self.mood_ema: dict[str, float] = {}
+        self.laser_last_seen: dict[str, float] = {}
         self.default_emotion_hold_seconds = 45.0
         self.pending_votes_required = 3
         self.axis_pending_votes = {
@@ -170,12 +173,14 @@ class ContextualBehaviorEngine:
         state: CatState,
         cat_id: Optional[str] = None,
     ) -> dict:
-        memory = self.get_or_create_memory(cat_id or "default")
+        cat_key = cat_id or "default"
+        now = time.time()
+        memory = self.get_or_create_memory(cat_key)
         
         activity_level = memory.get_recent_activity_level()
         
         base_mood = max(0.0, min(100.0, (state.energy + (100.0 - state.hunger)) / 2.0))
-        mood_ema = self._update_mood_ema(cat_id or "default", state.mood)
+        mood_ema = self._update_mood_ema(cat_key, state.mood)
         
         base_candidate = EmotionEngine.get_emotional_state(
             mood=base_mood,
@@ -194,12 +199,12 @@ class ContextualBehaviorEngine:
         )
         
         base_state = self._stabilize_axis(
-            cat_id=cat_id or "default",
+            cat_id=cat_key,
             axis="base",
             candidate=base_candidate,
         )
         mood_state = self._stabilize_axis(
-            cat_id=cat_id or "default",
+            cat_id=cat_key,
             axis="mood",
             candidate=mood_candidate,
         )
@@ -226,16 +231,24 @@ class ContextualBehaviorEngine:
                 reaction_modifier = reaction
                 reaction_stimulus = stimulus
                 break
-        
+
+        final_action = self._apply_laser_behavior(
+            state=state,
+            action=final_action,
+            cat_key=cat_key,
+            now=now,
+            activity_level=activity_level,
+        )
+
         reaction_axis = self._update_reaction_axis(
-            cat_id=cat_id or "default",
+            cat_id=cat_key,
             reaction=reaction_modifier,
             stimulus=reaction_stimulus,
             mood_state=mood_state,
         )
         
         emotion_axes = self._build_emotion_axes(
-            cat_id=cat_id or "default",
+            cat_id=cat_key,
             base_state=base_state,
             mood_state=mood_state,
             reaction_state=reaction_axis,
@@ -276,6 +289,60 @@ class ContextualBehaviorEngine:
             "visual_layers": visual_layers,
             "visual_primary": visual_primary,
         }
+
+    def _apply_laser_behavior(
+        self,
+        state: CatState,
+        action: int,
+        cat_key: str,
+        now: float,
+        activity_level: float,
+    ) -> int:
+        if not state.laser_active:
+            return action
+
+        if state.energy < 15:
+            return CatAction.IDLE
+
+        if state.energy < 30:
+            if action in (CatAction.MOVE_TO_TOY, CatAction.PLAY):
+                return CatAction.IDLE
+            return action
+
+        boredom = self._calculate_boredom(activity_level)
+        laser_interest = self._calculate_laser_interest(
+            playful_score=state.playful_score,
+            lazy_score=state.lazy_score,
+            boredom=boredom,
+        )
+
+        if state.laser_visible:
+            self.laser_last_seen[cat_key] = now
+            if laser_interest < 55:
+                return action
+
+            prediction_error = self._calculate_laser_prediction_error(state.laser_play_skill)
+            predicted_distance = max(0.0, state.laser_distance + state.laser_velocity * 0.2 + prediction_error * 20.0)
+            if predicted_distance <= 12.0:
+                return CatAction.PLAY
+            return CatAction.MOVE_TO_TOY
+
+        last_seen = self.laser_last_seen.get(cat_key, 0.0)
+        if now - last_seen < 1.5:
+            return CatAction.EXPLORE
+
+        return CatAction.IDLE
+
+    def _calculate_boredom(self, activity_level: float) -> float:
+        clamped_activity = max(0.0, min(1.0, activity_level))
+        return (1.0 - clamped_activity) * 100.0
+
+    def _calculate_laser_interest(self, playful_score: float, lazy_score: float, boredom: float) -> float:
+        return playful_score * 1.2 - lazy_score * 0.3 + boredom * 0.5
+
+    def _calculate_laser_prediction_error(self, skill: float) -> float:
+        clamped_skill = max(0.0, min(1.0, skill))
+        return random.uniform(-0.2, 0.2) * (1.0 - clamped_skill)
 
     def _update_mood_ema(self, cat_id: str, mood: float) -> float:
         previous = self.mood_ema.get(cat_id, mood)
