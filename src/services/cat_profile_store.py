@@ -56,7 +56,12 @@ class CatProfileStore:
     def get_profile(self, cat_id: str) -> Optional[CatProfile]:
         cached = self._cache.get(cat_id)
         if cached:
-            return cached
+            if cached.version >= self.CURRENT_PROFILE_VERSION:
+                return cached
+            profile_path = self._get_profile_path(cat_id)
+            upgraded = self._upgrade_profile_if_needed(cached, profile_path)
+            self._cache[cat_id] = upgraded
+            return upgraded
         profile_path = self._get_profile_path(cat_id)
         if not profile_path.exists():
             return None
