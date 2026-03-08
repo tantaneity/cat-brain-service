@@ -26,7 +26,7 @@ def _build_state(**overrides) -> CatState:
         "new_toy_appeared": False,
         "food_bowl_refilled": False,
         "sudden_movement": False,
-        "laser_distance": 20.0,
+        "laser_distance": 7.0,
         "laser_velocity": 0.0,
         "laser_visible": True,
         "laser_active": True,
@@ -63,12 +63,12 @@ def test_visible_laser_with_high_interest_biases_chase_or_play(monkeypatch):
 
     far_laser_result = engine.process_action(
         base_action=CatAction.IDLE,
-        state=_build_state(laser_distance=20.0),
+        state=_build_state(laser_distance=7.0),
         cat_id="cat-1",
     )
     close_laser_result = engine.process_action(
         base_action=CatAction.IDLE,
-        state=_build_state(laser_distance=8.0),
+        state=_build_state(laser_distance=1.8),
         cat_id="cat-1",
     )
 
@@ -115,6 +115,38 @@ def test_invisible_active_laser_triggers_short_search_then_fallback(monkeypatch)
     )
 
     assert fallback_result["action"] == CatAction.IDLE
+
+
+def test_activation_grace_biases_laser_chase_with_low_interest(monkeypatch):
+    _patch_behavior_noise(monkeypatch)
+    monkeypatch.setattr("src.services.contextual_engine.random.uniform", lambda a, b: 0.0)
+    engine = ContextualBehaviorEngine()
+
+    grace_result = engine.process_action(
+        base_action=CatAction.IDLE,
+        state=_build_state(
+            playful_score=20.0,
+            lazy_score=90.0,
+            laser_distance=5.0,
+            laser_visible=True,
+        ),
+        cat_id="cat-4",
+    )
+    assert grace_result["action"] == CatAction.MOVE_TO_TOY
+
+    engine.laser_last_active["cat-4"] = True
+    engine.laser_activated_at["cat-4"] = 0.0
+    no_grace_result = engine.process_action(
+        base_action=CatAction.IDLE,
+        state=_build_state(
+            playful_score=20.0,
+            lazy_score=90.0,
+            laser_distance=5.0,
+            laser_visible=True,
+        ),
+        cat_id="cat-4",
+    )
+    assert no_grace_result["action"] == CatAction.IDLE
 
 
 def test_higher_laser_skill_reduces_prediction_error(monkeypatch):

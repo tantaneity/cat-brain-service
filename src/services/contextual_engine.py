@@ -37,6 +37,9 @@ class ContextualBehaviorEngine:
         self.reaction_states: dict[str, ReactionAxisState] = {}
         self.mood_ema: dict[str, float] = {}
         self.laser_last_seen: dict[str, float] = {}
+        self.laser_last_active: dict[str, bool] = {}
+        self.laser_activated_at: dict[str, float] = {}
+        self.laser_activation_grace_seconds = 1.0
         self.default_emotion_hold_seconds = 45.0
         self.pending_votes_required = 3
         self.axis_pending_votes = {
@@ -299,7 +302,15 @@ class ContextualBehaviorEngine:
         activity_level: float,
     ) -> int:
         if not state.laser_active:
+            self.laser_last_active[cat_key] = False
             return action
+
+        was_laser_active = self.laser_last_active.get(cat_key, False)
+        if not was_laser_active:
+            self.laser_activated_at[cat_key] = now
+        self.laser_last_active[cat_key] = True
+        activated_at = self.laser_activated_at.get(cat_key, now)
+        in_activation_grace = now - activated_at < self.laser_activation_grace_seconds
 
         if state.energy < 15:
             return CatAction.IDLE
@@ -318,17 +329,20 @@ class ContextualBehaviorEngine:
 
         if state.laser_visible:
             self.laser_last_seen[cat_key] = now
-            if laser_interest < 55:
+            required_interest = 35.0 if in_activation_grace else 48.0
+            if laser_interest < required_interest:
                 return action
 
             prediction_error = self._calculate_laser_prediction_error(state.laser_play_skill)
-            predicted_distance = max(0.0, state.laser_distance + state.laser_velocity * 0.2 + prediction_error * 20.0)
-            if predicted_distance <= 12.0:
+            velocity_component = min(state.laser_velocity, 30.0) * 0.03
+            predicted_distance = max(0.0, state.laser_distance + velocity_component + prediction_error * 2.0)
+            play_distance_threshold = 3.0 if in_activation_grace else 2.4
+            if predicted_distance <= play_distance_threshold:
                 return CatAction.PLAY
             return CatAction.MOVE_TO_TOY
 
         last_seen = self.laser_last_seen.get(cat_key, 0.0)
-        if now - last_seen < 1.5:
+        if now - last_seen < 1.1:
             return CatAction.EXPLORE
 
         return CatAction.IDLE
