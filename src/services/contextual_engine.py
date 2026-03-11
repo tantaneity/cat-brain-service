@@ -39,7 +39,10 @@ class ContextualBehaviorEngine:
         self.laser_last_seen: dict[str, float] = {}
         self.laser_last_active: dict[str, bool] = {}
         self.laser_activated_at: dict[str, float] = {}
+        self.player_call_last_active: dict[str, bool] = {}
+        self.player_call_activated_at: dict[str, float] = {}
         self.laser_activation_grace_seconds = 1.0
+        self.player_call_grace_seconds = 1.0
         self.default_emotion_hold_seconds = 45.0
         self.pending_votes_required = 3
         self.axis_pending_votes = {
@@ -242,6 +245,12 @@ class ContextualBehaviorEngine:
             now=now,
             activity_level=activity_level,
         )
+        final_action = self._apply_player_call_behavior(
+            state=state,
+            action=final_action,
+            cat_key=cat_key,
+            now=now,
+        )
 
         reaction_axis = self._update_reaction_axis(
             cat_id=cat_key,
@@ -258,21 +267,23 @@ class ContextualBehaviorEngine:
         )
         visual_layers, visual_primary = self._build_visual_layers(emotion_axes)
         
-        if not reaction_triggered:
+        active_focus = state.laser_active or state.is_player_calling
+
+        if not reaction_triggered and not active_focus:
             quirk_action = BehaviorLibrary.get_random_quirk_action(
                 state.mood, state.energy
             )
             if quirk_action is not None:
                 final_action = quirk_action
-        
-        if not reaction_triggered:
+
+        if not reaction_triggered and not active_focus:
             final_action = StochasticBehavior.add_noise_to_prediction(
                 final_action,
                 confidence=0.75,
                 mood=state.mood,
             )
-        
-        if memory.is_repeating_behavior():
+
+        if memory.is_repeating_behavior() and not active_focus:
             final_action = StochasticBehavior.introduce_distraction(
                 final_action,
                 environment_richness=0.6,
@@ -329,14 +340,14 @@ class ContextualBehaviorEngine:
 
         if state.laser_visible:
             self.laser_last_seen[cat_key] = now
-            required_interest = 35.0 if in_activation_grace else 48.0
+            required_interest = 24.0 if in_activation_grace else 38.0
             if laser_interest < required_interest:
                 return action
 
             prediction_error = self._calculate_laser_prediction_error(state.laser_play_skill)
             velocity_component = min(state.laser_velocity, 30.0) * 0.03
             predicted_distance = max(0.0, state.laser_distance + velocity_component + prediction_error * 2.0)
-            play_distance_threshold = 3.0 if in_activation_grace else 2.4
+            play_distance_threshold = 3.8 if in_activation_grace else 3.1
             if predicted_distance <= play_distance_threshold:
                 return CatAction.PLAY
             return CatAction.MOVE_TO_TOY
@@ -346,6 +357,51 @@ class ContextualBehaviorEngine:
             return CatAction.EXPLORE
 
         return CatAction.IDLE
+
+    def _apply_player_call_behavior(
+        self,
+        state: CatState,
+        action: int,
+        cat_key: str,
+        now: float,
+    ) -> int:
+        if not state.is_player_calling:
+            self.player_call_last_active[cat_key] = False
+            return action
+
+        was_call_active = self.player_call_last_active.get(cat_key, False)
+        if not was_call_active:
+            self.player_call_activated_at[cat_key] = now
+        self.player_call_last_active[cat_key] = True
+        activated_at = self.player_call_activated_at.get(cat_key, now)
+        in_call_grace = now - activated_at < self.player_call_grace_seconds
+
+        if state.energy < 18:
+            return CatAction.IDLE
+
+        play_drive = self._calculate_laser_interest(
+            playful_score=state.playful_score,
+            lazy_score=state.lazy_score,
+            boredom=35.0,
+        )
+        distance_bias = max(0.0, min(1.0, 1.0 - (state.player_distance / 60.0)))
+        call_interest = play_drive * 0.45 + distance_bias * 35.0
+        if in_call_grace:
+            call_interest += 8.0
+
+        if call_interest < 25.0:
+            return action
+
+        if state.player_nearby and state.player_distance <= 28:
+            return CatAction.IDLE
+
+        if action in (CatAction.SLEEP, CatAction.GROOM) and in_call_grace:
+            return CatAction.EXPLORE
+
+        if action in (CatAction.IDLE, CatAction.EXPLORE, CatAction.PLAY):
+            return CatAction.EXPLORE
+
+        return action
 
     def _calculate_boredom(self, activity_level: float) -> float:
         clamped_activity = max(0.0, min(1.0, activity_level))

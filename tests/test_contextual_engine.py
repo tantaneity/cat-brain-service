@@ -125,8 +125,8 @@ def test_activation_grace_biases_laser_chase_with_low_interest(monkeypatch):
     grace_result = engine.process_action(
         base_action=CatAction.IDLE,
         state=_build_state(
-            playful_score=20.0,
-            lazy_score=90.0,
+            playful_score=5.0,
+            lazy_score=95.0,
             laser_distance=5.0,
             laser_visible=True,
         ),
@@ -139,8 +139,8 @@ def test_activation_grace_biases_laser_chase_with_low_interest(monkeypatch):
     no_grace_result = engine.process_action(
         base_action=CatAction.IDLE,
         state=_build_state(
-            playful_score=20.0,
-            lazy_score=90.0,
+            playful_score=5.0,
+            lazy_score=95.0,
             laser_distance=5.0,
             laser_visible=True,
         ),
@@ -157,3 +157,41 @@ def test_higher_laser_skill_reduces_prediction_error(monkeypatch):
     high_skill_error = engine._calculate_laser_prediction_error(0.9)
 
     assert abs(high_skill_error) < abs(low_skill_error)
+
+
+def test_player_call_biases_social_explore(monkeypatch):
+    _patch_behavior_noise(monkeypatch)
+    engine = ContextualBehaviorEngine()
+
+    result = engine.process_action(
+        base_action=CatAction.IDLE,
+        state=_build_state(
+            is_player_calling=True,
+            player_nearby=False,
+            player_distance=70.0,
+            energy=75.0,
+            laser_active=False,
+            laser_visible=False,
+        ),
+        cat_id="cat-call-1",
+    )
+
+    assert result["action"] == CatAction.EXPLORE
+
+
+def test_low_energy_overrides_player_call(monkeypatch):
+    _patch_behavior_noise(monkeypatch)
+    engine = ContextualBehaviorEngine()
+
+    result = engine.process_action(
+        base_action=CatAction.EXPLORE,
+        state=_build_state(
+            is_player_calling=True,
+            energy=12.0,
+            laser_active=False,
+            laser_visible=False,
+        ),
+        cat_id="cat-call-2",
+    )
+
+    assert result["action"] == CatAction.IDLE
