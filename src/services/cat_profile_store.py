@@ -43,7 +43,7 @@ class CatProfile:
 
 
 class CatProfileStore:
-    CURRENT_PROFILE_VERSION = 2
+    CURRENT_PROFILE_VERSION = 3
 
     def __init__(self, base_path: Path):
         self.base_path = Path(base_path)
@@ -125,27 +125,31 @@ class CatProfileStore:
         rng = random.Random(seed)
         profile = self._personality_centers(personality)
         return {
-            "hunger": self._sample(rng, profile["hunger"], 0.08),
-            "energy": self._sample(rng, profile["energy"], 0.1),
-            "distance_food": self._sample(rng, profile["distance_food"], 0.1),
-            "distance_toy": self._sample(rng, profile["distance_toy"], 0.12),
-            "distance_bed": self._sample(rng, profile["distance_bed"], 0.08),
-            "mood": self._sample(rng, profile["mood"], 0.08),
-            "lazy_score": self._sample(rng, profile["lazy_score"], 0.16),
-            "foodie_score": self._sample(rng, profile["foodie_score"], 0.16),
-            "playful_score": self._sample(rng, profile["playful_score"], 0.16),
+            "hunger": self._sample(rng, profile["hunger"], 0.11),
+            "energy": self._sample(rng, profile["energy"], 0.13),
+            "distance_food": self._sample(rng, profile["distance_food"], 0.14),
+            "distance_toy": self._sample(rng, profile["distance_toy"], 0.16),
+            "distance_bed": self._sample(rng, profile["distance_bed"], 0.1),
+            "mood": self._sample(rng, profile["mood"], 0.1),
+            "lazy_score": self._sample(rng, profile["lazy_score"], 0.22),
+            "foodie_score": self._sample(rng, profile["foodie_score"], 0.22),
+            "playful_score": self._sample(rng, profile["playful_score"], 0.22),
         }
 
     def _upgrade_profile_if_needed(self, profile: CatProfile, profile_path: Path) -> CatProfile:
         if profile.version >= self.CURRENT_PROFILE_VERSION:
             return profile
 
+        new_modifiers = self._generate_modifiers(profile.seed, profile.personality)
+        if profile.modifiers and profile.version == self.CURRENT_PROFILE_VERSION - 1:
+            new_modifiers = self._blend_modifiers(profile.modifiers, new_modifiers, blend=0.35)
+
         upgraded = CatProfile(
             cat_id=profile.cat_id,
             personality=profile.personality,
             created_at=profile.created_at,
             seed=profile.seed,
-            modifiers=self._generate_modifiers(profile.seed, profile.personality),
+            modifiers=new_modifiers,
             version=self.CURRENT_PROFILE_VERSION,
         )
         self._save_profile(upgraded, profile_path)
@@ -162,10 +166,21 @@ class CatProfileStore:
         rng: random.Random,
         center: float,
         spread: float,
-        min_value: float = 0.6,
-        max_value: float = 1.4,
+        min_value: float = 0.55,
+        max_value: float = 1.45,
     ) -> float:
         return round(max(min_value, min(max_value, rng.uniform(center - spread, center + spread))), 3)
+
+    def _blend_modifiers(self, previous: dict, regenerated: dict, blend: float) -> dict:
+        clamped_blend = max(0.0, min(1.0, blend))
+        result = {}
+        keys = set(previous.keys()) | set(regenerated.keys())
+        for key in keys:
+            prev = float(previous.get(key, regenerated.get(key, 1.0)))
+            nxt = float(regenerated.get(key, prev))
+            value = prev * (1.0 - clamped_blend) + nxt * clamped_blend
+            result[key] = round(max(0.55, min(1.45, value)), 3)
+        return result
 
     def _personality_centers(self, personality: str) -> dict[str, float]:
         key = (personality or "balanced").lower()
@@ -182,37 +197,37 @@ class CatProfileStore:
                 "playful_score": 1.0,
             },
             "lazy": {
-                "hunger": 0.94,
-                "energy": 1.16,
-                "distance_food": 1.02,
-                "distance_toy": 1.18,
-                "distance_bed": 0.9,
-                "mood": 0.98,
-                "lazy_score": 1.28,
-                "foodie_score": 0.92,
-                "playful_score": 0.72,
+                "hunger": 0.88,
+                "energy": 1.24,
+                "distance_food": 1.08,
+                "distance_toy": 1.24,
+                "distance_bed": 0.88,
+                "mood": 0.96,
+                "lazy_score": 1.36,
+                "foodie_score": 0.84,
+                "playful_score": 0.62,
             },
             "foodie": {
-                "hunger": 1.18,
-                "energy": 0.92,
-                "distance_food": 0.78,
-                "distance_toy": 1.1,
-                "distance_bed": 1.0,
-                "mood": 0.98,
-                "lazy_score": 0.9,
-                "foodie_score": 1.28,
-                "playful_score": 0.86,
+                "hunger": 1.26,
+                "energy": 0.86,
+                "distance_food": 0.68,
+                "distance_toy": 1.18,
+                "distance_bed": 1.02,
+                "mood": 0.96,
+                "lazy_score": 0.86,
+                "foodie_score": 1.36,
+                "playful_score": 0.78,
             },
             "playful": {
-                "hunger": 0.92,
-                "energy": 1.06,
-                "distance_food": 1.08,
-                "distance_toy": 0.74,
-                "distance_bed": 1.06,
-                "mood": 1.08,
-                "lazy_score": 0.74,
-                "foodie_score": 0.9,
-                "playful_score": 1.3,
+                "hunger": 0.84,
+                "energy": 1.12,
+                "distance_food": 1.16,
+                "distance_toy": 0.62,
+                "distance_bed": 1.1,
+                "mood": 1.14,
+                "lazy_score": 0.64,
+                "foodie_score": 0.84,
+                "playful_score": 1.38,
             },
         }
         return presets.get(key, presets["balanced"])
