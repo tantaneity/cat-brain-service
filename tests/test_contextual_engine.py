@@ -22,6 +22,12 @@ def _build_state(**overrides) -> CatState:
         "player_distance": 100.0,
         "is_being_petted": False,
         "is_player_calling": False,
+        "player_call_intensity": 0.0,
+        "player_call_confidence": 0.0,
+        "player_call_pitch": 0.0,
+        "player_call_rhythm": 0.0,
+        "player_call_pattern_match": 0.0,
+        "player_call_nickname_match": 0.0,
         "loud_noise_level": 0.0,
         "new_toy_appeared": False,
         "food_bowl_refilled": False,
@@ -195,3 +201,46 @@ def test_low_energy_overrides_player_call(monkeypatch):
     )
 
     assert result["action"] == CatAction.IDLE
+
+
+def test_high_nickname_match_increases_player_call_response(monkeypatch):
+    _patch_behavior_noise(monkeypatch)
+    engine = ContextualBehaviorEngine()
+
+    low_signal_result = engine.process_action(
+        base_action=CatAction.IDLE,
+        state=_build_state(
+            playful_score=5.0,
+            lazy_score=95.0,
+            is_player_calling=True,
+            player_nearby=False,
+            player_distance=80.0,
+            laser_active=False,
+            laser_visible=False,
+            player_call_confidence=0.0,
+            player_call_intensity=0.0,
+            player_call_pattern_match=0.0,
+            player_call_nickname_match=0.0,
+        ),
+        cat_id="cat-call-3",
+    )
+    assert low_signal_result["action"] == CatAction.IDLE
+
+    high_signal_result = engine.process_action(
+        base_action=CatAction.IDLE,
+        state=_build_state(
+            playful_score=5.0,
+            lazy_score=95.0,
+            is_player_calling=True,
+            player_nearby=False,
+            player_distance=80.0,
+            laser_active=False,
+            laser_visible=False,
+            player_call_confidence=0.88,
+            player_call_intensity=0.82,
+            player_call_pattern_match=0.91,
+            player_call_nickname_match=0.95,
+        ),
+        cat_id="cat-call-4",
+    )
+    assert high_signal_result["action"] == CatAction.EXPLORE

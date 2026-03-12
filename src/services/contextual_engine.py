@@ -136,9 +136,10 @@ class ContextualBehaviorEngine:
             ))
         
         if state.is_player_calling:
+            call_signal = self._calculate_player_call_signal_strength(state)
             stimuli.append(Stimulus(
                 type=StimulusType.PLAYER_CALL,
-                intensity=1.0,
+                intensity=max(0.25, call_signal),
             ))
         
         if state.loud_noise_level > 0.3:
@@ -379,23 +380,30 @@ class ContextualBehaviorEngine:
         if state.energy < 18:
             return CatAction.IDLE
 
+        call_signal = self._calculate_player_call_signal_strength(state)
         play_drive = self._calculate_laser_interest(
             playful_score=state.playful_score,
             lazy_score=state.lazy_score,
             boredom=35.0,
         )
         distance_bias = max(0.0, min(1.0, 1.0 - (state.player_distance / 60.0)))
-        call_interest = play_drive * 0.45 + distance_bias * 35.0
+        call_interest = play_drive * 0.3 + distance_bias * 22.0 + call_signal * 55.0
+        if state.player_call_nickname_match >= 0.65:
+            call_interest += 10.0
         if in_call_grace:
-            call_interest += 8.0
+            call_interest += 14.0
 
-        if call_interest < 25.0:
+        required_interest = 24.0 - min(8.0, state.player_call_nickname_match * 8.0)
+        if in_call_grace:
+            required_interest -= 4.0
+
+        if call_interest < required_interest:
             return action
 
-        if state.player_nearby and state.player_distance <= 28:
+        if state.player_nearby and state.player_distance <= 20:
             return CatAction.IDLE
 
-        if action in (CatAction.SLEEP, CatAction.GROOM) and in_call_grace:
+        if action in (CatAction.SLEEP, CatAction.GROOM) and (in_call_grace or call_signal >= 0.45):
             return CatAction.EXPLORE
 
         if action in (CatAction.IDLE, CatAction.EXPLORE, CatAction.PLAY):
@@ -413,6 +421,28 @@ class ContextualBehaviorEngine:
     def _calculate_laser_prediction_error(self, skill: float) -> float:
         clamped_skill = max(0.0, min(1.0, skill))
         return random.uniform(-0.2, 0.2) * (1.0 - clamped_skill)
+
+    def _calculate_player_call_signal_strength(self, state: CatState) -> float:
+        confidence = max(0.0, min(1.0, state.player_call_confidence))
+        intensity = max(0.0, min(1.0, state.player_call_intensity))
+        pattern_match = max(0.0, min(1.0, state.player_call_pattern_match))
+        nickname_match = max(0.0, min(1.0, state.player_call_nickname_match))
+        pitch = max(0.0, min(1.0, state.player_call_pitch))
+        rhythm = max(0.0, min(1.0, state.player_call_rhythm))
+
+        # Keep a small acoustic quality factor so call dynamics matter even before learning stabilizes.
+        pitch_alignment = 1.0 - min(1.0, abs(pitch - 0.45) * 1.5)
+        rhythm_alignment = 1.0 - min(1.0, abs(rhythm - 0.4) * 1.5)
+        acoustic_quality = max(0.0, min(1.0, (pitch_alignment + rhythm_alignment) * 0.5))
+
+        weighted = (
+            confidence * 0.3
+            + intensity * 0.2
+            + pattern_match * 0.2
+            + nickname_match * 0.25
+            + acoustic_quality * 0.05
+        )
+        return max(0.0, min(1.0, weighted))
 
     def _update_mood_ema(self, cat_id: str, mood: float) -> float:
         previous = self.mood_ema.get(cat_id, mood)

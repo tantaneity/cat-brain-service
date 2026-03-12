@@ -99,6 +99,42 @@ class CatState(BaseModel):
         default=False,
         description="Whether player is calling the cat",
     )
+    player_call_intensity: float = Field(
+        default=0.0,
+        ge=0,
+        le=1.0,
+        description="Call loudness/intensity extracted from microphone signal",
+    )
+    player_call_confidence: float = Field(
+        default=0.0,
+        ge=0,
+        le=1.0,
+        description="Confidence that current call matches learned owner pattern",
+    )
+    player_call_pitch: float = Field(
+        default=0.0,
+        ge=0,
+        le=1.0,
+        description="Normalized dominant pitch of current call",
+    )
+    player_call_rhythm: float = Field(
+        default=0.0,
+        ge=0,
+        le=1.0,
+        description="Normalized rhythm/tempo of current call",
+    )
+    player_call_pattern_match: float = Field(
+        default=0.0,
+        ge=0,
+        le=1.0,
+        description="Similarity between call and learned generic voice pattern",
+    )
+    player_call_nickname_match: float = Field(
+        default=0.0,
+        ge=0,
+        le=1.0,
+        description="Similarity between call and learned nickname signature",
+    )
     loud_noise_level: float = Field(
         default=0.0,
         ge=0,
@@ -171,6 +207,12 @@ class CatState(BaseModel):
                 "player_distance": 15.5,
                 "is_being_petted": False,
                 "is_player_calling": False,
+                "player_call_intensity": 0.0,
+                "player_call_confidence": 0.0,
+                "player_call_pitch": 0.0,
+                "player_call_rhythm": 0.0,
+                "player_call_pattern_match": 0.0,
+                "player_call_nickname_match": 0.0,
                 "loud_noise_level": 0.0,
                 "new_toy_appeared": False,
                 "food_bowl_refilled": False,
