@@ -187,6 +187,10 @@ class CatState(BaseModel):
         default="afternoon",
         description="Time of day: morning, afternoon, evening, night",
     )
+    task_description: str = Field(
+        default="idle",
+        description="Current task or intent description for contextual decisions",
+    )
 
     model_config = {
         "json_schema_extra": {
@@ -224,6 +228,7 @@ class CatState(BaseModel):
                 "laser_play_skill": 0.15,
                 "laser_caught": False,
                 "time_of_day": "afternoon",
+                "task_description": "idle",
             }
         }
     }
