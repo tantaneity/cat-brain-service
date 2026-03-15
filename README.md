@@ -7,31 +7,31 @@ living cat ai with emotions, reactions, and realistic behavior
 ```mermaid
 graph TB
     subgraph Client["Unity Client"]
-        UNITY[Game Engine<br/>CatState + Stimuli]
+        UNITY["Game Engine<br/>CatState + Stimuli"]
     end
 
     subgraph API["FastAPI Service"]
-        PREDICT[POST /predict]
-        CATS[/cats /cats/:id /cats/:id/profile]
-        MODELS[/models /models/:v]
-        LEARN[/experience /experience/batch]
-        JUMP[/jump/predict /jump/result /jump/memory]
-        MONITOR[/health /ready /live /metrics]
-        MIDDLEWARE[Middleware<br/>Logging + Metrics + RequestId]
-        DEPS[Dependencies<br/>DI Container]
+        PREDICT["Predict API"]
+        CATS["Cat Management API"]
+        MODELS["Model Management API"]
+        LEARN["Experience API"]
+        JUMP["Jump Learning API"]
+        MONITOR["Health + Metrics"]
+        MIDDLEWARE["Middleware<br/>Logging + Metrics + RequestId"]
+        DEPS["Dependencies<br/>DI Container"]
 
         PREDICT & CATS & MODELS & LEARN & JUMP & MONITOR --> MIDDLEWARE
         MIDDLEWARE --> DEPS
     end
 
     subgraph Core["Behavioral Core"]
-        CONTEXTUAL[ContextualBehaviorEngine<br/>Main Orchestrator]
-        EMOTIONS[Emotion Engine<br/>13 emotions, 3 axes]
-        REACTIONS[Reaction System<br/>9 stimuli, 182 rules]
-        BEHAVIOR[Stochastic Behavior<br/>Quirks + Patterns]
-        MEMORY[Cat Memory<br/>Last 50 actions]
-        LASER[Laser Learning<br/>Interest + Skill]
-        VOICE[Voice Learning<br/>Call + Nickname]
+        CONTEXTUAL["ContextualBehaviorEngine<br/>Main Orchestrator"]
+        EMOTIONS["Emotion Engine<br/>13 emotions, 3 axes"]
+        REACTIONS["Reaction System<br/>9 stimuli, 182 rules"]
+        BEHAVIOR["Stochastic Behavior<br/>Quirks + Patterns"]
+        MEMORY["Cat Memory<br/>Last 50 actions"]
+        LASER["Laser Learning<br/>Interest + Skill"]
+        VOICE["Voice Learning<br/>Call + Nickname"]
 
         CONTEXTUAL --> EMOTIONS
         CONTEXTUAL --> REACTIONS
@@ -42,10 +42,10 @@ graph TB
     end
 
     subgraph Inference["ML Inference"]
-        PREDICTOR[Batch Predictor<br/>PPO + Personality]
-        PROFILE[CatProfileStore<br/>Per-cat Modifiers]
-        LOADER[Model Loader<br/>Default + Individual]
-        MODELS_STORE[(models/)]
+        PREDICTOR["Batch Predictor<br/>PPO + Personality"]
+        PROFILE["CatProfileStore<br/>Per-cat Modifiers"]
+        LOADER["Model Loader<br/>Default + Individual"]
+        MODELS_STORE[("models")]
 
         PREDICTOR --> PROFILE
         PREDICTOR --> LOADER
@@ -53,14 +53,14 @@ graph TB
     end
 
     subgraph Services["Services"]
-        CAT_SERVICE[CatService<br/>Cat Management]
-        HISTORY[ActionHistory<br/>JSONL per-cat]
-        JUMP_SERVICE[JumpLearningService<br/>Force Calibration]
+        CAT_SERVICE["CatService<br/>Cat Management"]
+        HISTORY["ActionHistory<br/>JSONL per-cat"]
+        JUMP_SERVICE["JumpLearningService<br/>Force Calibration"]
     end
 
     subgraph Training["Training Pipeline"]
-        ENV[CatEnvironment<br/>Gymnasium]
-        PPO[PPO Algorithm<br/>Stable-Baselines3]
+        ENV["CatEnvironment<br/>Gymnasium"]
+        PPO["PPO Algorithm<br/>Stable-Baselines3"]
         ENV --> PPO --> MODELS_STORE
     end
 
@@ -94,7 +94,7 @@ sequenceDiagram
     participant B as Behavior
     participant M as Memory
 
-    U->>R: POST /predict {CatState + stimuli}
+    U->>R: POST predict (CatState + stimuli)
 
     R->>P: predict_single(obs, cat_id, personality)
     Note over P: Apply personality modifiers<br/>(hunger x1.4 for foodie, etc)<br/>Apply per-cat profile modifiers
@@ -117,11 +117,11 @@ sequenceDiagram
     alt reaction matched
         X-->>C: action override + mood_delta + animation + sound
     else no match
-        C->>B: add_noise(base_action, 20%)
+        C->>B: add_noise(base_action, 20 pct)
         B-->>C: noisy_action + quirks
     end
 
-    C->>C: laser_behavior / voice_behavior
+    C->>C: laser_behavior + voice_behavior
     C->>M: check repetition
     opt too repetitive
         C->>B: introduce_distraction()
@@ -138,28 +138,28 @@ sequenceDiagram
 ```mermaid
 graph TD
     subgraph Inputs
-        MOOD[mood 0-100]
-        HUNGER[hunger 0-100]
-        ENERGY[energy 0-100]
-        NOISE[noise 0-1]
-        STIMULUS[active stimulus]
+        MOOD["mood 0-100"]
+        HUNGER["hunger 0-100"]
+        ENERGY["energy 0-100"]
+        NOISE["noise 0-1"]
+        STIMULUS["active stimulus"]
     end
 
     subgraph Calculation
-        AROUSAL[Arousal<br/>hunger deficit + energy + noise]
-        VALENCE["Valence<br/>(mood/100 - 0.5) x 2"]
-        INTENSITY[Intensity<br/>extremes + arousal + mood deviation]
+        AROUSAL["Arousal<br/>hunger deficit + energy + noise"]
+        VALENCE["Valence<br/>mood normalized to -1..1"]
+        INTENSITY["Intensity<br/>extremes + arousal + mood deviation"]
     end
 
     subgraph ThreeAxes["3 Emotion Axes"]
-        BASE[BASE axis<br/>from mood + needs<br/>slow, stable, 3 votes to change]
-        MOOD_AX[MOOD axis<br/>from valence + arousal<br/>medium, 2 votes to change]
-        REACT[REACTION axis<br/>from stimulus<br/>fast, expires in 3-5s]
+        BASE["BASE axis<br/>from mood + needs<br/>slow, stable, 3 votes to change"]
+        MOOD_AX["MOOD axis<br/>from valence + arousal<br/>medium, 2 votes to change"]
+        REACT["REACTION axis<br/>from stimulus<br/>fast, expires in 3-5s"]
     end
 
     subgraph Compose["Visual Composition"]
-        LAYERS[Visual Layers<br/>priority + weight per axis]
-        PRIMARY[visual_primary<br/>highest priority active layer]
+        LAYERS["Visual Layers<br/>priority + weight per axis"]
+        PRIMARY["visual_primary<br/>highest priority active layer"]
     end
 
     MOOD & HUNGER & ENERGY --> AROUSAL
@@ -193,45 +193,45 @@ graph TD
 
 ```mermaid
 flowchart TD
-    STATE([CatState from Unity]) --> PERSONALITY
+    STATE(["CatState from Unity"]) --> PERSONALITY
 
-    PERSONALITY[Apply Personality<br/>balanced / lazy / foodie / playful] --> MODEL
-    MODEL[PPO Model<br/>11 features -> 8 actions] --> BASE
+    PERSONALITY["Apply Personality<br/>balanced, lazy, foodie, playful"] --> MODEL
+    MODEL["PPO Model<br/>11 features, 8 actions"] --> BASE
 
-    BASE[base_action] --> STIMULUS{stimulus<br/>detected?}
+    BASE["base_action"] --> STIMULUS{"stimulus<br/>detected?"}
 
-    STIMULUS -->|yes| RULES[182 reaction rules<br/>stimulus x emotion -> modifier]
-    STIMULUS -->|no| NOISE[Stochastic Layer<br/>20% randomness + quirks]
+    STIMULUS -->|yes| RULES["182 reaction rules<br/>stimulus x emotion"]
+    STIMULUS -->|no| NOISE["Stochastic Layer<br/>20 pct randomness + quirks"]
 
-    RULES --> OVERRIDE{reaction<br/>fires?}
-    OVERRIDE -->|yes| REACTION_ACTION[Override Action<br/>+ mood_delta + animation + sound]
+    RULES --> OVERRIDE{"reaction<br/>fires?"}
+    OVERRIDE -->|yes| REACTION_ACTION["Override Action<br/>mood_delta + animation + sound"]
     OVERRIDE -->|no| NOISE
 
-    NOISE --> QUIRK{random<br/>quirk?}
-    QUIRK -->|yes| QUIRK_ACTION[Groom / Explore / Meow]
-    QUIRK -->|no| PATTERN{behavior<br/>pattern?}
+    NOISE --> QUIRK{"random<br/>quirk?"}
+    QUIRK -->|yes| QUIRK_ACTION["Groom, Explore, or Meow"]
+    QUIRK -->|no| PATTERN{"behavior<br/>pattern?"}
 
-    PATTERN -->|zoomies| ZOOMIES[Play / Explore burst]
-    PATTERN -->|lazy_sunday| LAZY[Idle / Sleep / Groom]
-    PATTERN -->|midnight_madness| MIDNIGHT[Explore / Meow chain]
-    PATTERN -->|none| PASS[Keep base action]
+    PATTERN -->|zoomies| ZOOMIES["Play + Explore burst"]
+    PATTERN -->|lazy_sunday| LAZY["Idle + Sleep + Groom"]
+    PATTERN -->|midnight_madness| MIDNIGHT["Explore + Meow chain"]
+    PATTERN -->|none| PASS["Keep base action"]
 
-    REACTION_ACTION & QUIRK_ACTION & ZOOMIES & LAZY & MIDNIGHT & PASS --> LASER{laser<br/>visible?}
+    REACTION_ACTION & QUIRK_ACTION & ZOOMIES & LAZY & MIDNIGHT & PASS --> LASER{"laser<br/>visible?"}
 
-    LASER -->|yes| LASER_LEARN[Laser Behavior<br/>interest + skill -> chase/play]
-    LASER -->|no| VOICE{player<br/>calling?}
+    LASER -->|yes| LASER_LEARN["Laser Behavior<br/>interest + skill"]
+    LASER -->|no| VOICE{"player<br/>calling?"}
 
     LASER_LEARN --> VOICE
 
-    VOICE -->|yes| VOICE_LEARN[Voice Behavior<br/>signal strength -> approach/respond]
+    VOICE -->|yes| VOICE_LEARN["Voice Behavior<br/>signal strength"]
     VOICE -->|no| REPETITION
 
     VOICE_LEARN --> REPETITION
 
-    REPETITION{repeating<br/>too much?} -->|yes| DISTRACT[Force Distraction]
+    REPETITION{"repeating<br/>too much?"} -->|yes| DISTRACT["Force Distraction"]
     REPETITION -->|no| FINAL
 
-    DISTRACT --> FINAL([Final Action + Emotion + Hints])
+    DISTRACT --> FINAL(["Final Action + Emotion + Hints"])
 
     style STATE fill:#fef3c7
     style MODEL fill:#ddd6fe
@@ -244,31 +244,31 @@ flowchart TD
 
 ```mermaid
 graph TD
-    subgraph InputObs["Observation (11 features)"]
+    subgraph InputObs["Observation - 11 features"]
         OBS["hunger, energy, dist_food, dist_toy,<br/>dist_bed, mood, lazy, foodie, playful,<br/>bowl_empty, bowl_tipped"]
     end
 
     subgraph Types["4 Personality Types"]
-        BAL["balanced<br/>all x1.0"]
-        LAZ["lazy<br/>energy x1.5, hunger x0.8<br/>dist_toy x0.7"]
-        FOO["foodie<br/>hunger x1.4, energy x0.7<br/>dist_food x0.7, dist_toy x1.3"]
-        PLA["playful<br/>hunger x0.7, energy x0.9<br/>dist_food x1.2, dist_toy x0.6"]
+        BAL["balanced<br/>all x 1.0"]
+        LAZ["lazy<br/>energy x 1.5, hunger x 0.8<br/>dist_toy x 0.7"]
+        FOO["foodie<br/>hunger x 1.4, energy x 0.7<br/>dist_food x 0.7, dist_toy x 1.3"]
+        PLA["playful<br/>hunger x 0.7, energy x 0.9<br/>dist_food x 1.2, dist_toy x 0.6"]
     end
 
     subgraph PerCat["Per-Cat Profile"]
         SEED["Deterministic seed<br/>from cat_id hash"]
-        MODS["9 unique modifiers<br/>hunger, energy, distances,<br/>mood, lazy, foodie, playful<br/>range: 0.55 - 1.45"]
+        MODS["9 unique modifiers<br/>hunger, energy, distances,<br/>mood, lazy, foodie, playful<br/>range 0.55 to 1.45"]
     end
 
     subgraph Drift["Runtime Drift"]
-        SLEEP_IDLE["sleep / idle<br/>lazy +0.05, playful -0.025"]
+        SLEEP_IDLE["sleep + idle<br/>lazy +0.05, playful -0.025"]
         EAT["move_to_food<br/>foodie +0.05"]
-        PLAY_TOY["play / move_to_toy<br/>playful +0.05, lazy -0.035"]
+        PLAY_TOY["play + move_to_toy<br/>playful +0.05, lazy -0.035"]
     end
 
-    OBS --> Types --> |"multiply"| MODIFIED[Modified Observation]
-    OBS --> PerCat --> |"multiply"| MODIFIED
-    MODIFIED --> MODEL[PPO Model]
+    OBS --> Types -->|multiply| MODIFIED["Modified Observation"]
+    OBS --> PerCat -->|multiply| MODIFIED
+    MODIFIED --> MODEL["PPO Model"]
 
     style InputObs fill:#f0fdf4
     style Types fill:#eff6ff
@@ -307,15 +307,15 @@ graph TD
 
 ```mermaid
 flowchart LR
-    REQ([predict request]) --> HAS_ID{cat_id?}
+    REQ(["predict request"]) --> HAS_ID{"cat_id?"}
 
-    HAS_ID -->|yes| CHECK{individual<br/>model exists?}
+    HAS_ID -->|yes| CHECK{"individual<br/>model exists?"}
     HAS_ID -->|no| DEFAULT
 
-    CHECK -->|yes| INDIVIDUAL["models/cats/{id}/latest/"]
-    CHECK -->|no| DEFAULT["models/latest/"]
+    CHECK -->|yes| INDIVIDUAL["Individual Model"]
+    CHECK -->|no| DEFAULT["Default Model"]
 
-    INDIVIDUAL --> PREDICT[PPO predict]
+    INDIVIDUAL --> PREDICT["PPO predict"]
     DEFAULT --> PREDICT
 
     style DEFAULT fill:#93c5fd
