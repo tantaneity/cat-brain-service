@@ -6,397 +6,350 @@ living cat ai with emotions, reactions, and realistic behavior
 
 ```mermaid
 graph TB
-    subgraph Training["Training Pipeline"]
-        ENV[Cat Environment<br/>Gymnasium]
-        PPO[PPO Algorithm<br/>Stable-Baselines3]
-        CALLBACKS[Training Callbacks<br/>Logging, Checkpoints]
-        MODELS[(Model Storage<br/>models/ + models/cats/)]
-        
-        ENV --> PPO
-        PPO --> CALLBACKS
-        CALLBACKS --> MODELS
+    subgraph Client["Unity Client"]
+        UNITY[Game Engine<br/>CatState + Stimuli]
     end
-    
+
     subgraph API["FastAPI Service"]
-        REQUEST[HTTP Request<br/>/predict + stimuli]
-        ROUTES[API Routes<br/>predictions, cats, models]
-        MIDDLEWARE[Middleware<br/>Logging, Metrics]
+        PREDICT[POST /predict]
+        CATS[/cats /cats/:id /cats/:id/profile]
+        MODELS[/models /models/:v]
+        LEARN[/experience /experience/batch]
+        JUMP[/jump/predict /jump/result /jump/memory]
+        MONITOR[/health /ready /live /metrics]
+        MIDDLEWARE[Middleware<br/>Logging + Metrics + RequestId]
         DEPS[Dependencies<br/>DI Container]
-        
-        REQUEST --> MIDDLEWARE
-        MIDDLEWARE --> ROUTES
-        ROUTES --> DEPS
+
+        PREDICT & CATS & MODELS & LEARN & JUMP & MONITOR --> MIDDLEWARE
+        MIDDLEWARE --> DEPS
     end
-    
-    subgraph Services["Service Layer"]
-        CAT_SERVICE[CatService<br/>Business Logic]
-        CONTEXTUAL[ContextualEngine<br/>Emotions + Reactions]
-        ACTION_HISTORY[ActionHistory<br/>JSONL Storage]
-        MEMORY[CatMemory<br/>Behavior Tracking]
-        
-        DEPS --> CAT_SERVICE
-        DEPS --> CONTEXTUAL
-        CONTEXTUAL --> MEMORY
-        CAT_SERVICE --> ACTION_HISTORY
-    end
-    
-    subgraph Inference["Base Inference"]
-        PREDICTOR[Batch Predictor]
-        PERSONALITY[Personality Config<br/>lazy/foodie/playful]
-        CACHE[Redis Cache<br/>5min TTL]
-        LOADER[Model Loader<br/>Default + Individual]
-        
-        DEPS --> PREDICTOR
-        PREDICTOR --> PERSONALITY
-        PREDICTOR --> ACTION_HISTORY
-        PERSONALITY --> CACHE
-        CACHE -.cache miss.-> LOADER
-        LOADER --> MODELS
-        CAT_SERVICE --> LOADER
-    end
-    
-    subgraph Living["Living Cat System"]
-        EMOTIONS[Emotion Engine<br/>14 emotions]
-        REACTIONS[Reaction System<br/>Stimulus Response]
-        BEHAVIOR[Stochastic Behavior<br/>Randomness + Quirks]
-        PATTERNS[Behavior Patterns<br/>Zoomies, Lazy, etc]
-        
+
+    subgraph Core["Behavioral Core"]
+        CONTEXTUAL[ContextualBehaviorEngine<br/>Main Orchestrator]
+        EMOTIONS[Emotion Engine<br/>13 emotions, 3 axes]
+        REACTIONS[Reaction System<br/>9 stimuli, 182 rules]
+        BEHAVIOR[Stochastic Behavior<br/>Quirks + Patterns]
+        MEMORY[Cat Memory<br/>Last 50 actions]
+        LASER[Laser Learning<br/>Interest + Skill]
+        VOICE[Voice Learning<br/>Call + Nickname]
+
         CONTEXTUAL --> EMOTIONS
         CONTEXTUAL --> REACTIONS
         CONTEXTUAL --> BEHAVIOR
-        CONTEXTUAL --> PATTERNS
+        CONTEXTUAL --> MEMORY
+        CONTEXTUAL --> LASER
+        CONTEXTUAL --> VOICE
     end
-    
-    subgraph Output["Enhanced Response"]
-        ACTION[Cat Action<br/>8 actions + emotion]
-        EMOTION_DATA[Emotional State<br/>mood, arousal, valence]
-        ANIMATION[Animation Hints<br/>purr, scared, excited]
-        SOUND[Sound Hints<br/>meow, hiss, chirp]
-        CAT_INFO[Cat Info<br/>brain path, actions]
-        METRICS[Prometheus Metrics]
-        LOGS[Structured Logs<br/>JSON]
-        
-        CONTEXTUAL --> ACTION
-        CONTEXTUAL --> EMOTION_DATA
-        CONTEXTUAL --> ANIMATION
-        CONTEXTUAL --> SOUND
-        CAT_SERVICE --> CAT_INFO
-        MIDDLEWARE --> METRICS
-        MIDDLEWARE --> LOGS
+
+    subgraph Inference["ML Inference"]
+        PREDICTOR[Batch Predictor<br/>PPO + Personality]
+        PROFILE[CatProfileStore<br/>Per-cat Modifiers]
+        LOADER[Model Loader<br/>Default + Individual]
+        MODELS_STORE[(models/)]
+
+        PREDICTOR --> PROFILE
+        PREDICTOR --> LOADER
+        LOADER --> MODELS_STORE
     end
-    
-    style Training fill:#e1f5ff
-    style API fill:#fff3e0
-    style Services fill:#e8f5e9
-    style Inference fill:#f3e5f5
-    style Living fill:#ffebee
-    style Output fill:#ffe0b2
+
+    subgraph Services["Services"]
+        CAT_SERVICE[CatService<br/>Cat Management]
+        HISTORY[ActionHistory<br/>JSONL per-cat]
+        JUMP_SERVICE[JumpLearningService<br/>Force Calibration]
+    end
+
+    subgraph Training["Training Pipeline"]
+        ENV[CatEnvironment<br/>Gymnasium]
+        PPO[PPO Algorithm<br/>Stable-Baselines3]
+        ENV --> PPO --> MODELS_STORE
+    end
+
+    UNITY --> PREDICT
+    DEPS --> PREDICTOR
+    DEPS --> CONTEXTUAL
+    DEPS --> CAT_SERVICE
+    DEPS --> JUMP_SERVICE
+    PREDICTOR --> CONTEXTUAL
+    CAT_SERVICE --> HISTORY
+    CAT_SERVICE --> LOADER
+
+    style Client fill:#fef3c7
+    style API fill:#fff7ed
+    style Core fill:#fce7f3
+    style Inference fill:#ede9fe
+    style Services fill:#ecfdf5
+    style Training fill:#e0f2fe
 ```
 
-## Request Flow with Living Cat System
+## Request Flow
 
 ```mermaid
 sequenceDiagram
-    participant Client
-    participant Routes as API Routes
-    participant Predictor as Base Predictor
-    participant ContextEngine as Contextual Engine
-    participant Emotions as Emotion Engine
-    participant Reactions as Reaction System
-    participant Behavior as Stochastic Behavior
-    participant Memory as Cat Memory
-    participant Model as PPO Model
-    participant History as ActionHistory
-    
-    Client->>Routes: POST /predict<br/>{hunger, energy, mood,<br/>player_nearby, is_being_petted,<br/>loud_noise_level, etc}
-    
-    Routes->>Predictor: predict_single(obs, cat_id, personality)
-    Note over Predictor: Apply personality modifiers<br/>(hunger×1.4 for foodie, etc)
-    
-    Predictor->>Model: predict(modified_obs)
-    Model-->>Predictor: base_action (deterministic)
-    
-    Routes->>ContextEngine: process_action(base_action, state)
-    
-    ContextEngine->>Memory: get_or_create_memory(cat_id)
-    Memory-->>ContextEngine: activity_level, recent_actions
-    
-    ContextEngine->>Emotions: get_emotional_state(mood, hunger, energy)
-    Note over Emotions: Calculate arousal<br/>Determine emotion (14 types)<br/>Calculate intensity
-    Emotions-->>ContextEngine: EmotionalState {emotion, arousal, valence}
-    
-    ContextEngine->>ContextEngine: extract_stimuli(state)
-    Note over ContextEngine: Check: is_being_petted?<br/>loud_noise? new_toy?<br/>player_nearby? etc
-    
-    ContextEngine->>Reactions: get_reaction(stimulus, emotion)
-    Note over Reactions: Match rules:<br/>happy + petted = purr<br/>scared + noise = hide<br/>hungry + food = rush
-    Reactions-->>ContextEngine: ReactionModifier {action_override,<br/>mood_delta, animation, sound}
-    
-    alt Reaction Triggered
-        ContextEngine->>Reactions: apply_reaction(base_action, reaction)
-        Reactions-->>ContextEngine: final_action (overridden)
-    else No Reaction
-        ContextEngine->>Behavior: add_noise_to_prediction(base_action)
-        Note over Behavior: 20% randomness<br/>mood-based variance<br/>random quirks
-        Behavior-->>ContextEngine: final_action (with noise)
+    participant U as Unity
+    participant R as Routes
+    participant P as Predictor
+    participant C as ContextualEngine
+    participant E as Emotions
+    participant X as Reactions
+    participant B as Behavior
+    participant M as Memory
+
+    U->>R: POST /predict {CatState + stimuli}
+
+    R->>P: predict_single(obs, cat_id, personality)
+    Note over P: Apply personality modifiers<br/>(hunger x1.4 for foodie, etc)<br/>Apply per-cat profile modifiers
+    P->>P: model.predict(modified_obs)
+    P-->>R: base_action
+
+    R->>C: process_action(base_action, state)
+    C->>M: get_memory(cat_id)
+    M-->>C: recent_actions, activity_level
+
+    C->>E: calculate 3 emotion axes
+    Note over E: BASE: mood + hunger + energy<br/>MOOD: valence + arousal<br/>REACTION: stimulus-driven (expires)
+    E-->>C: emotion_axes + visual_layers
+
+    C->>C: extract_stimuli(state)
+    Note over C: pet? call? noise? toy?<br/>food? movement? laser?
+
+    C->>X: match(stimulus, emotion)
+
+    alt reaction matched
+        X-->>C: action override + mood_delta + animation + sound
+    else no match
+        C->>B: add_noise(base_action, 20%)
+        B-->>C: noisy_action + quirks
     end
-    
-    ContextEngine->>Memory: is_repeating_behavior()
-    alt Repeating Too Much
-        ContextEngine->>Behavior: introduce_distraction(action)
-        Behavior-->>ContextEngine: distracted_action
+
+    C->>C: laser_behavior / voice_behavior
+    C->>M: check repetition
+    opt too repetitive
+        C->>B: introduce_distraction()
     end
-    
-    ContextEngine->>Memory: record_action(action, mood)
-    ContextEngine->>History: log_action(cat_id, obs, action)
-    
-    ContextEngine-->>Routes: {action, emotional_state,<br/>mood_delta, animation_hint,<br/>sound_hint, reaction_triggered}
-    
-    Routes-->>Client: {<br/>  action: 4,<br/>  action_name: "groom",<br/>  emotion: "happy",<br/>  emotion_intensity: "moderate",<br/>  mood_change: 15.0,<br/>  arousal_level: 0.35,<br/>  animation_hint: "purr",<br/>  sound_hint: "purr_soft",<br/>  reaction_triggered: true<br/>}
+
+    C->>M: record(action, mood)
+    C-->>R: CatAction
+
+    R-->>U: action + emotion + animation + sound + mood_change + visual_layers
 ```
 
-## Model Selection Logic
+## Emotion System
+
+```mermaid
+graph TD
+    subgraph Inputs
+        MOOD[mood 0-100]
+        HUNGER[hunger 0-100]
+        ENERGY[energy 0-100]
+        NOISE[noise 0-1]
+        STIMULUS[active stimulus]
+    end
+
+    subgraph Calculation
+        AROUSAL[Arousal<br/>hunger deficit + energy + noise]
+        VALENCE["Valence<br/>(mood/100 - 0.5) x 2"]
+        INTENSITY[Intensity<br/>extremes + arousal + mood deviation]
+    end
+
+    subgraph ThreeAxes["3 Emotion Axes"]
+        BASE[BASE axis<br/>from mood + needs<br/>slow, stable, 3 votes to change]
+        MOOD_AX[MOOD axis<br/>from valence + arousal<br/>medium, 2 votes to change]
+        REACT[REACTION axis<br/>from stimulus<br/>fast, expires in 3-5s]
+    end
+
+    subgraph Compose["Visual Composition"]
+        LAYERS[Visual Layers<br/>priority + weight per axis]
+        PRIMARY[visual_primary<br/>highest priority active layer]
+    end
+
+    MOOD & HUNGER & ENERGY --> AROUSAL
+    MOOD --> VALENCE
+    AROUSAL & VALENCE --> BASE & MOOD_AX
+    STIMULUS --> REACT
+
+    BASE & MOOD_AX & REACT --> LAYERS --> PRIMARY
+
+    style Inputs fill:#dbeafe
+    style Calculation fill:#fef9c3
+    style ThreeAxes fill:#fce7f3
+    style Compose fill:#d1fae5
+```
+
+### 13 emotions
+
+| positive | negative | neutral |
+|----------|----------|---------|
+| happy | scared | curious |
+| excited | anxious | sleepy |
+| playful | grumpy | hungry |
+| affectionate | annoyed | demanding |
+| content | | |
+| relaxed | | |
+
+### 4 intensity levels
+`subtle` < `moderate` < `strong` < `intense`
+
+## Decision Pipeline
 
 ```mermaid
 flowchart TD
-    START([Request with cat_id]) --> CHECK_ID{cat_id<br/>provided?}
-    
-    CHECK_ID -->|No| DEFAULT[Use Default Brain<br/>models/latest/]
-    CHECK_ID -->|Yes| CHECK_INDIVIDUAL{Individual model<br/>exists?}
-    
-    CHECK_INDIVIDUAL -->|Yes| INDIVIDUAL[Load Cat Brain<br/>models/cats/&lt;cat_id&gt;/latest/]
-    CHECK_INDIVIDUAL -->|No| DEFAULT
-    
-    DEFAULT --> LOAD_DEFAULT[Load from cache<br/>or disk]
-    INDIVIDUAL --> LOAD_INDIVIDUAL[Load from cache<br/>or disk]
-    
-    LOAD_DEFAULT --> PREDICT[Predict Action]
-    LOAD_INDIVIDUAL --> PREDICT
-    
-    PREDICT --> END([Return Action])
-    
-    style DEFAULT fill:#90caf9
-    style INDIVIDUAL fill:#ce93d8
-    style PREDICT fill:#a5d6a7
+    STATE([CatState from Unity]) --> PERSONALITY
+
+    PERSONALITY[Apply Personality<br/>balanced / lazy / foodie / playful] --> MODEL
+    MODEL[PPO Model<br/>11 features -> 8 actions] --> BASE
+
+    BASE[base_action] --> STIMULUS{stimulus<br/>detected?}
+
+    STIMULUS -->|yes| RULES[182 reaction rules<br/>stimulus x emotion -> modifier]
+    STIMULUS -->|no| NOISE[Stochastic Layer<br/>20% randomness + quirks]
+
+    RULES --> OVERRIDE{reaction<br/>fires?}
+    OVERRIDE -->|yes| REACTION_ACTION[Override Action<br/>+ mood_delta + animation + sound]
+    OVERRIDE -->|no| NOISE
+
+    NOISE --> QUIRK{random<br/>quirk?}
+    QUIRK -->|yes| QUIRK_ACTION[Groom / Explore / Meow]
+    QUIRK -->|no| PATTERN{behavior<br/>pattern?}
+
+    PATTERN -->|zoomies| ZOOMIES[Play / Explore burst]
+    PATTERN -->|lazy_sunday| LAZY[Idle / Sleep / Groom]
+    PATTERN -->|midnight_madness| MIDNIGHT[Explore / Meow chain]
+    PATTERN -->|none| PASS[Keep base action]
+
+    REACTION_ACTION & QUIRK_ACTION & ZOOMIES & LAZY & MIDNIGHT & PASS --> LASER{laser<br/>visible?}
+
+    LASER -->|yes| LASER_LEARN[Laser Behavior<br/>interest + skill -> chase/play]
+    LASER -->|no| VOICE{player<br/>calling?}
+
+    LASER_LEARN --> VOICE
+
+    VOICE -->|yes| VOICE_LEARN[Voice Behavior<br/>signal strength -> approach/respond]
+    VOICE -->|no| REPETITION
+
+    VOICE_LEARN --> REPETITION
+
+    REPETITION{repeating<br/>too much?} -->|yes| DISTRACT[Force Distraction]
+    REPETITION -->|no| FINAL
+
+    DISTRACT --> FINAL([Final Action + Emotion + Hints])
+
+    style STATE fill:#fef3c7
+    style MODEL fill:#ddd6fe
+    style RULES fill:#fecaca
+    style NOISE fill:#d1fae5
+    style FINAL fill:#bfdbfe
 ```
 
 ## Personality System
 
 ```mermaid
-graph LR
-    subgraph Input
-        OBS[Original Observation<br/>8 params: hunger, energy,<br/>dist_food, dist_toy,<br/>mood, lazy_score,<br/>foodie_score, playful_score]
+graph TD
+    subgraph InputObs["Observation (11 features)"]
+        OBS["hunger, energy, dist_food, dist_toy,<br/>dist_bed, mood, lazy, foodie, playful,<br/>bowl_empty, bowl_tipped"]
     end
-    
-    subgraph Config["PERSONALITY_CONFIG (config.py)"]
-        BALANCED[Balanced<br/>×1.0 all]
-        LAZY[Lazy<br/>energy×1.5, hunger×0.8]
-        FOODIE[Foodie<br/>hunger×1.4, energy×0.7]
-        PLAYFUL[Playful<br/>dist_toy×0.6, hunger×0.7]
+
+    subgraph Types["4 Personality Types"]
+        BAL["balanced<br/>all x1.0"]
+        LAZ["lazy<br/>energy x1.5, hunger x0.8<br/>dist_toy x0.7"]
+        FOO["foodie<br/>hunger x1.4, energy x0.7<br/>dist_food x0.7, dist_toy x1.3"]
+        PLA["playful<br/>hunger x0.7, energy x0.9<br/>dist_food x1.2, dist_toy x0.6"]
     end
-    
-    subgraph Processing
-        GET[Get Modifiers] --> APPLY[Apply to Observation<br/>Only modifies indices 0-3<br/>mood & scores unchanged]
-        APPLY --> CLIP[Clip Values<br/>hunger,energy: 0-100<br/>distances: 0-10<br/>mood: 0-100<br/>scores: 0-100]
+
+    subgraph PerCat["Per-Cat Profile"]
+        SEED["Deterministic seed<br/>from cat_id hash"]
+        MODS["9 unique modifiers<br/>hunger, energy, distances,<br/>mood, lazy, foodie, playful<br/>range: 0.55 - 1.45"]
     end
-    
-    subgraph Output
-        MODIFIED[Modified Observation<br/>8 params with personality applied]
+
+    subgraph Drift["Runtime Drift"]
+        SLEEP_IDLE["sleep / idle<br/>lazy +0.05, playful -0.025"]
+        EAT["move_to_food<br/>foodie +0.05"]
+        PLAY_TOY["play / move_to_toy<br/>playful +0.05, lazy -0.035"]
     end
-    
-    OBS --> GET
-    BALANCED & LAZY & FOODIE & PLAYFUL --> GET
-    CLIP --> MODIFIED
-    MODIFIED --> MODEL[ML Model<br/>expects 8 features]
-    
-    style Config fill:#e1f5fe
-    style LAZY fill:#b3e5fc
-    style FOODIE fill:#ffccbc
-    style PLAYFUL fill:#c5e1a5
+
+    OBS --> Types --> |"multiply"| MODIFIED[Modified Observation]
+    OBS --> PerCat --> |"multiply"| MODIFIED
+    MODIFIED --> MODEL[PPO Model]
+
+    style InputObs fill:#f0fdf4
+    style Types fill:#eff6ff
+    style PerCat fill:#fef3c7
+    style Drift fill:#fdf2f8
 ```
 
-## Training
+## Actions
+
+| # | action | description |
+|---|--------|-------------|
+| 0 | idle | stand around, do nothing |
+| 1 | move_to_food | walk to food bowl |
+| 2 | move_to_toy | approach nearest toy |
+| 3 | sleep | find spot and nap |
+| 4 | groom | self-grooming |
+| 5 | play | play with toy or laser |
+| 6 | explore | wander around |
+| 7 | meow_at_bowl | sit at bowl, meow for food |
+
+## 9 Stimulus Types
+
+| stimulus | trigger condition |
+|----------|-------------------|
+| player_approach | player_nearby && distance < threshold |
+| player_pet | is_being_petted |
+| player_call | is_player_calling |
+| loud_noise | loud_noise_level > 0.3 |
+| new_toy | new_toy_appeared |
+| food_refill | food_bowl_refilled |
+| door_open | sudden_movement (approximation) |
+| sudden_movement | sudden_movement flag |
+| unknown_person | (reserved) |
+
+## Model Selection
 
 ```mermaid
 flowchart LR
-    subgraph Development
-        CODE[Code Changes] --> CHOOSE{Training Type?}
-        CHOOSE -->|Default| TRAIN_DEFAULT["Train Default Brain<br/>python -m src.training.trainer"]
-        CHOOSE -->|Individual| TRAIN_CAT["Fine-tune Cat Brain<br/>trainer fine_tune method"]
-        TRAIN_DEFAULT --> EVAL[Evaluate Model<br/>10 episodes]
-        TRAIN_CAT --> EVAL
-    end
-    
-    subgraph Storage
-        EVAL --> SAVE{Save Location?}
-        SAVE -->|Default| SAVE_DEFAULT["models/timestamp/"]
-        SAVE -->|Individual| SAVE_CAT["models/cats/cat_id/timestamp/"]
-        SAVE_DEFAULT --> SYMLINK_DEFAULT["Update symlink<br/>models/latest/"]
-        SAVE_CAT --> SYMLINK_CAT["Update symlink<br/>models/cats/cat_id/latest/"]
-        SAVE_DEFAULT & SAVE_CAT --> META[Save Metadata<br/>version, reward, cat_id]
-    end
-    
-    subgraph Production
-        SYMLINK_DEFAULT & SYMLINK_CAT --> RELOAD{API Running?}
-        RELOAD -->|Yes| HOT[Hot Reload<br/>Load new model]
-        RELOAD -->|No| COLD[Cold Start<br/>Load on startup]
-        HOT --> SERVE[Serve Predictions]
-        COLD --> SERVE
-    end
-    
-    style TRAIN_DEFAULT fill:#ffeb3b
-    style TRAIN_CAT fill:#ff9800
-    style SAVE_DEFAULT fill:#4caf50
-    style SAVE_CAT fill:#66bb6a
-    style SERVE fill:#2196f3
+    REQ([predict request]) --> HAS_ID{cat_id?}
+
+    HAS_ID -->|yes| CHECK{individual<br/>model exists?}
+    HAS_ID -->|no| DEFAULT
+
+    CHECK -->|yes| INDIVIDUAL["models/cats/{id}/latest/"]
+    CHECK -->|no| DEFAULT["models/latest/"]
+
+    INDIVIDUAL --> PREDICT[PPO predict]
+    DEFAULT --> PREDICT
+
+    style DEFAULT fill:#93c5fd
+    style INDIVIDUAL fill:#c4b5fd
+    style PREDICT fill:#86efac
 ```
 
-## Living Cat Decision Flow
+## Endpoints
 
-```mermaid
-stateDiagram-v2
-    [*] --> ReceiveState: client request
-    ReceiveState --> BasePredict: hunger, energy, mood, stimuli
-    BasePredict --> ApplyPersonality: personality modifiers
-    ApplyPersonality --> MLModel: modified observation
-    
-    MLModel --> BaseAction: deterministic action
-    
-    BaseAction --> CheckMemory: cat memory lookup
-    CheckMemory --> CalcEmotion: recent activity level
-    
-    CalcEmotion --> EmotionState: arousal + valence
-    EmotionState --> ExtractStimuli: 14 emotion types
-    
-    ExtractStimuli --> CheckReaction: player_pet, loud_noise, etc
-    
-    CheckReaction --> ReactionMatch: match (stimulus, emotion)
-    
-    state ReactionMatch <<choice>>
-    ReactionMatch --> ApplyReaction: rule found
-    ReactionMatch --> AddNoise: no match
-    
-    ApplyReaction --> FinalAction: override or bias action
-    AddNoise --> RandomQuirk: 20% randomness
-    RandomQuirk --> FinalAction
-    
-    FinalAction --> CheckRepetition: is repeating?
-    
-    state CheckRepetition <<choice>>
-    CheckRepetition --> Distraction: yes, too repetitive
-    CheckRepetition --> RecordMemory: no, natural variation
-    Distraction --> RecordMemory
-    
-    RecordMemory --> BuildResponse: store action + mood
-    
-    BuildResponse --> Response: {<br/>action, emotion,<br/>animation, sound,<br/>mood_change<br/>}
-    
-    Response --> [*]
-    
-    note right of EmotionState
-        happy, playful, scared,
-        grumpy, content, sleepy,
-        hungry, anxious, etc
-    end note
-    
-    note right of ApplyReaction
-        scared + loud_noise = hide
-        happy + petted = purr
-        hungry + food_refill = rush
-    end note
-```
+| method | path | description |
+|--------|------|-------------|
+| POST | `/predict` | predict single action |
+| POST | `/predict_batch` | predict for multiple cats |
+| POST | `/cats` | create cat with personality |
+| GET | `/cats/{id}` | get cat info |
+| GET | `/cats/{id}/profile` | get personality profile + modifiers |
+| GET | `/models` | list model versions |
+| GET | `/models/{version}` | model metadata |
+| POST | `/experience` | submit single experience |
+| POST | `/experience/batch` | submit batch experiences |
+| POST | `/jump/predict` | predict jump force |
+| POST | `/jump/result` | record jump outcome |
+| GET | `/jump/memory/{id}` | get jump memories |
+| DELETE | `/jump/memory/{id}/{target}` | reset jump target memory |
+| GET | `/health` `/ready` `/live` | health probes |
+| GET | `/metrics` | prometheus metrics |
 
-## Component Dependencies
+## How to Run
 
-```mermaid
-graph TD
-    subgraph Core
-        ENV[environment.py<br/>Gymnasium Env]
-        CONFIG[config.py<br/>Settings + PersonalityConfig]
-        EMOTIONS[emotions.py<br/>14 Emotion Types]
-        REACTIONS[reactions.py<br/>Stimulus Response Rules]
-        BEHAVIOR[behavior.py<br/>Stochastic Patterns]
-    end
-    
-    subgraph Training
-        TRAINER[trainer.py<br/>PPO Training + Fine-tuning]
-        CALLBACKS[callbacks.py<br/>Logging]
-    end
-    
-    subgraph Services
-        CAT_SERVICE[cat_service.py<br/>Cat Management]
-        CONTEXTUAL[contextual_engine.py<br/>Living Cat System]
-        ACTION_HIST[action_history.py<br/>JSONL Storage]
-    end
-    
-    subgraph Inference
-        LOADER[model_loader.py<br/>Load Models]
-        PREDICTOR[predictor.py<br/>Batch + Personality]
-        CACHE_MOD[cache.py<br/>Redis Cache]
-    end
-    
-    subgraph API
-        MAIN[main.py<br/>Entry Point]
-        APP[app.py<br/>FastAPI Factory]
-        DEPS[dependencies.py<br/>DI Container]
-        ROUTES[routes/<br/>predictions, cats, models, monitoring]
-        SCHEMAS[schemas.py<br/>Pydantic Models + Stimuli]
-        MIDDLEWARE_MOD[middleware.py<br/>Logging]
-        HEALTH[health.py<br/>Health Checks]
-    end
-    
-    subgraph Utils
-        LOGGER[logger.py<br/>Structlog]
-        METRICS_MOD[metrics.py<br/>Prometheus]
-    end
-    
-    CONFIG --> TRAINER
-    CONFIG --> PREDICTOR
-    CONFIG --> APP
-    
-    ENV --> TRAINER
-    TRAINER --> CALLBACKS
-    TRAINER --> CAT_SERVICE
-    
-    EMOTIONS --> CONTEXTUAL
-    REACTIONS --> CONTEXTUAL
-    BEHAVIOR --> CONTEXTUAL
-    
-    LOADER --> PREDICTOR
-    LOADER --> CAT_SERVICE
-    CACHE_MOD --> PREDICTOR
-    
-    CONTEXTUAL --> ACTION_HIST
-    CAT_SERVICE --> ACTION_HIST
-    
-    MAIN --> APP
-    APP --> ROUTES
-    APP --> DEPS
-    DEPS --> PREDICTOR
-    DEPS --> CAT_SERVICE
-    DEPS --> CONTEXTUAL
-    ROUTES --> SCHEMAS
-    ROUTES --> MIDDLEWARE_MOD
-    ROUTES --> HEALTH
-    
-    LOGGER --> TRAINER
-    LOGGER --> ROUTES
-    METRICS_MOD --> MIDDLEWARE_MOD
-    
-    style Core fill:#e3f2fd
-    style Training fill:#fff9c4
-    style Services fill:#e8f5e9
-    style Inference fill:#f3e5f5
-    style API fill:#ffe0b2
-    style Utils fill:#fce4ec
-```
-## How to Actually Run This Thing
-
-### Dev Mode
+### dev
 
 ```bash
 python -m venv venv
-.\venv\Scripts\activate
+source venv/bin/activate
 pip install -r requirements.txt
 
 uvicorn src.api.main:app --reload --host 0.0.0.0 --port 8000
@@ -404,96 +357,18 @@ uvicorn src.api.main:app --reload --host 0.0.0.0 --port 8000
 python -m src.training.trainer
 ```
 
-### Docker
+### docker
 
 ```bash
 cd docker
 docker-compose up --build
 ```
 
-api: `localhost:8000`  
+api: `localhost:8000`
 docs: `localhost:8000/docs`
 
-## Living Cat Features
+## Response Format
 
-### 14 emotional states
-- **positive**: happy, excited, playful, affectionate, content, relaxed
-- **negative**: scared, anxious, grumpy, annoyed  
-- **neutral**: curious, sleepy, hungry, demanding
-
-emotions calculated from mood, hunger, energy, arousal
-
-### environmental stimuli
-- `player_pet` - being petted
-- `player_call` - player calling
-- `loud_noise` - environmental noise (0-1)
-- `new_toy` - toy appeared
-- `food_refill` - bowl refilled
-- `player_approach` - player nearby
-- `sudden_movement` - unexpected motion
-
-### reactions
-emotion + stimulus = unique response:
-- happy + petted = purr (85% chance)
-- scared + loud_noise = hide (95% chance)
-- hungry + food_refill = rush to food (95% chance)
-- grumpy + petted = tail flick (60% chance)
-
-### unpredictability
-- 20% base randomness
-- mood-based variance
-- spontaneous quirks (grooming, exploring)
-- attention span modifiers
-- behavioral patterns (zoomies, lazy sunday, midnight madness)
-
-### memory system
-tracks last 50 actions:
-- prevents robotic repetition
-- calculates activity levels
-- introduces distractions if too repetitive
-
-## api usage
-
-### minimal request
-```json
-POST /predict
-{
-  "hunger": 60.0,
-  "energy": 50.0,
-  "distance_to_food": 5.0,
-  "distance_to_toy": 10.0,
-  "mood": 55.0
-}
-```
-
-### full living cat request
-```json
-POST /predict
-{
-  "cat_id": "whiskers",
-  "personality": "playful",
-  "hunger": 45.0,
-  "energy": 70.0,
-  "distance_to_food": 8.0,
-  "distance_to_toy": 3.0,
-  "mood": 75.0,
-  "lazy_score": 30.0,
-  "foodie_score": 50.0,
-  "playful_score": 80.0,
-  
-  "player_nearby": true,
-  "player_distance": 12.0,
-  "is_being_petted": false,
-  "is_player_calling": true,
-  "loud_noise_level": 0.0,
-  "new_toy_appeared": false,
-  "food_bowl_refilled": false,
-  "sudden_movement": false,
-  "time_of_day": "evening"
-}
-```
-
-### enhanced response
 ```json
 {
   "action": 5,
@@ -504,186 +379,86 @@ POST /predict
   "arousal_level": 0.65,
   "animation_hint": "playful_approach",
   "sound_hint": "chirp",
-  "reaction_triggered": true
+  "reaction_triggered": true,
+  "behavior_pattern": "zoomies",
+  "emotion_axes": {
+    "base":     { "emotion": "content",  "intensity": 0.4, "source": "base" },
+    "mood":     { "emotion": "happy",    "intensity": 0.6, "source": "mood" },
+    "reaction": { "emotion": "playful",  "intensity": 0.8, "source": "reaction", "expires_at": 1710... }
+  },
+  "visual_layers": [
+    { "source": "reaction", "emotion": "playful", "intensity": 0.8, "priority": 10, "weight": 1.0 },
+    { "source": "mood",     "emotion": "happy",   "intensity": 0.6, "priority": 5,  "weight": 0.7 },
+    { "source": "base",     "emotion": "content", "intensity": 0.4, "priority": 1,  "weight": 0.5 }
+  ],
+  "visual_primary": "playful"
 }
 ```
 
-## unity integration
+## Animation & Sound Hints
 
-### send state
-```csharp
-var response = await brainService.Predict(new CatState {
-    hunger = catStats.hunger,
-    energy = catStats.energy,
-    mood = catStats.mood,
-    is_being_petted = isPetting,
-    loud_noise_level = GetEnvironmentNoise(),
-    player_nearby = IsPlayerNearby()
-});
+### animations
+`purr` `scared` `excited` `startle` `hide` `run_hide` `run_to_food` `playful_approach` `rub_legs` `tail_flick` `ignore` `pounce` `alert` `slow_approach` `knead`
+
+### sounds
+`purr` `purr_soft` `meow_excited` `meow_annoyed` `meow_urgent` `meow_response` `meow_demand` `hiss` `chirp` `growl` `trill`
+
+## Behavioral Patterns
+
+| pattern | trigger | actions |
+|---------|---------|---------|
+| zoomies | high energy burst | play + explore chains |
+| lazy_sunday | low energy | idle + sleep + groom |
+| midnight_madness | nighttime + energy | explore + meow chains |
+| morning_routine | morning | groom + eat + explore |
+| food_obsession | high hunger | move_to_food + meow_at_bowl |
+
+## Key Config
+
+```
+MODEL_PATH         = ./models
+TOTAL_TIMESTEPS    = 100,000
+CACHE_ENABLED      = false (optional redis)
+CACHE_TTL          = 300s
+MEMORY_SIZE        = 50 actions per cat
+HISTORY_MAX        = 500 entries per cat JSONL
+RANDOMNESS         = 20%
 ```
 
-### apply response
-```csharp
-ExecuteCatAction(response.action);
+## Customization
 
-if (!string.IsNullOrEmpty(response.animation_hint)) {
-    animator.Play(response.animation_hint);
-}
-
-if (!string.IsNullOrEmpty(response.sound_hint)) {
-    audioSource.PlayOneShot(GetSound(response.sound_hint));
-}
-
-catStats.mood += response.mood_change;
-```
-
-### animation hints
-- `purr` - happy purring
-- `scared` - frightened
-- `excited` - bouncy
-- `startle` - sudden jump
-- `hide` - run and hide
-- `run_to_food` - sprint to bowl
-- `playful_approach` - bouncy walk
-- `rub_legs` - affection
-- `tail_flick` - annoyance
-- `ignore` - turn away
-
-### sound hints
-- `purr` / `purr_soft` - purring
-- `meow_excited` / `meow_annoyed` / `meow_urgent` - various meows
-- `meow_response` - acknowledgment
-- `hiss` - scared/angry
-- `chirp` - playful trill
-
-## Important Stuff You Should Know
-
-### living cat system
-model provides base action, then:
-1. **emotion engine** calculates emotional state (14 types)
-2. **reaction system** checks for stimulus responses  
-3. **stochastic layer** adds 20% randomness
-4. **memory** prevents repetitive behavior
-5. **contextual engine** combines everything
-
-result: unpredictable, lifelike cat behavior
-
-### cache ttl
-redis cache set to **5min ttl** (caching base ml predictions only)
-reactions and emotions calculated real-time every request
-
-restart redis: `docker restart cat-brain-redis`  
-change ttl: `CACHE_TTL` in config (seconds)
-
-### response latencies
-- cache hit: ~10-15ms (ml cached, emotions calculated)
-- cache miss: ~30-60ms (ml + emotions)
-- first request: ~10-15s (model loading)
-
-living cat processing adds ~5-10ms (emotion + reaction calculations)
-
-### model versioning
-models saved as `models/<timestamp>/`  
-`models/latest/` is symlink  
-individual cats: `models/cats/<cat_id>/latest/`
-
-check `metadata.json` for loaded version
-
-### personality modifiers
-personalities are multipliers at inference (not trained)  
-add custom personalities in [config.py](src/core/config.py)
-
-format:
+### add personality
+edit `src/core/config.py`:
 ```python
-PERSONALITY_CONFIG = {
-    "custom": {
-        "hunger": 1.2,
-        "energy": 0.9,
-        "distance_food": 0.8,
-        "distance_toy": 1.1
-    }
+"custom": {
+    "hunger": 1.2,
+    "energy": 0.9,
+    "distance_food": 0.8,
+    "distance_toy": 1.1
 }
 ```
 
-### individual brains vs default
-request with `cat_id="fluffy"`:
-1. checks `models/cats/fluffy/latest/`
-2. falls back to `models/latest/`
-3. cached separately
-
-individual brains must be trained explicitly
-
-### metrics & monitoring
-prometheus metrics at `/metrics`
-
-key metrics:
-- `prediction_duration_seconds` - should be <100ms
-- `cache_hit_rate` - should be >70%
-- `model_load_duration_seconds` - first load 10-15s, cached instant
-
-### logs & debugging
-structured json logs (structlog)
-
-```bash
-cat logs.json | jq 'select(.level=="error")'
-cat logs.json | jq 'select(.cat_id=="fluffy")'
-cat logs.json | jq 'select(.event=="reaction_triggered")'
-```
-
-set `LOG_LEVEL=DEBUG` for verbose output
-
-### when to retrain
-signs you need new model:
-- cats doing dumb stuff (sleeping when starving)
-- reward plateau in training (check tensorboard)
-- added new environment features
-
-otherwise tweak reactions/emotions - faster than retraining
-
-### customizing reactions
-edit [reactions.py](src/core/reactions.py):
-
+### add reaction
+edit `src/core/reactions.py`:
 ```python
-REACTION_RULES = {
-    (StimulusType.PLAYER_PET, EmotionType.HAPPY): ReactionModifier(
-        action_probabilities={4: 0.6},  # 60% groom
-        mood_delta=15.0,
-        animation_hint="purr",
-        sound_hint="purr",
-        probability=0.85  # 85% chance
-    ),
-}
+(StimulusType.PLAYER_PET, EmotionType.HAPPY): ReactionModifier(
+    action_probabilities={4: 0.6},
+    mood_delta=15.0,
+    animation_hint="purr",
+    sound_hint="purr",
+    probability=0.85
+)
 ```
 
-### adding new emotions
-extend [emotions.py](src/core/emotions.py):
-
+### add emotion
+edit `src/core/emotions.py`:
 ```python
 class EmotionType(Enum):
     MISCHIEVOUS = "mischievous"
 
 EMOTION_THRESHOLDS = {
     EmotionType.MISCHIEVOUS: {
-        "mood_min": 60,
-        "energy_min": 70,
-        "arousal_min": 0.6
-    },
+        "mood_min": 60, "energy_min": 70, "arousal_min": 0.6
+    }
 }
 ```
-
-### tuning randomness
-modify [behavior.py](src/core/behavior.py):
-
-```python
-randomness = 0.2  # 20% chance of random action
-```
-
-higher = more unpredictable, lower = more consistent
-
-### behavioral patterns
-automatic patterns trigger based on context:
-- **zoomies** - high energy bursts
-- **lazy_sunday** - low energy lounging  
-- **midnight_madness** - nighttime activity
-- **morning_routine** - wake-up behaviors
-- **food_obsession** - hunger-driven focus
